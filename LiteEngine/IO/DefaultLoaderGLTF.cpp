@@ -470,16 +470,11 @@ namespace LiteEngine::IO {
         out->consantBuffers->cpuData<decltype(constants)>() = constants;
 
         // out.shader is set by the constructor
-
-        auto texInfoBaseColor = mat.pbrMetallicRoughness.baseColorTexture;
-        auto texBaseColor = model.textures[texInfoBaseColor.index];
-        auto imgBaseColor = model.images[texBaseColor.source];
-        
         out->texBaseColor = loadTexture(mat.pbrMetallicRoughness.baseColorTexture, model);
         constants.uvBaseColor = mat.pbrMetallicRoughness.baseColorTexture.index;
         if (!out->texBaseColor) {
             static std::shared_ptr<Rendering::ShaderResourceView> defaultTexBaseColor(
-                renderer.createDefaultTexture({1, 1, 1, 1}, 4)
+                renderer.createDefaultTexture({1, 1, 1, 1}, 2)
             );
             out->texBaseColor = defaultTexBaseColor;
         }

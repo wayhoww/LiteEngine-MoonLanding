@@ -25,7 +25,7 @@ int WINAPI wWinMain(
 	_In_ int nCmdShow
 ) {
 	// required by DirectXTeX
-	// 需要在 ！！每一个！！ 调用 DirectX 的线程调用
+	// 需要在 ！！每一个！！ 调用 DirectXTeX 的线程调用
 	Microsoft::WRL::Wrappers::RoInitializeWrapper initialize(RO_INIT_MULTITHREADED);
 	if (FAILED(initialize)) {
 		assert(false);
@@ -33,9 +33,6 @@ int WINAPI wWinMain(
 
 	SetProcessDPIAware();
 
-//	return 0;
-
-	//D3D11_APPEND_ALIGNED_ELEMENT packing?
 	namespace le = LiteEngine;
 	namespace ler = le::Rendering;
 	namespace lesm = le::SceneManagement;
@@ -48,7 +45,7 @@ int WINAPI wWinMain(
 	ler::Renderer::setHandle(window.getHwnd());
 	auto& renderer = ler::Renderer::getInstance();
 
-	auto res = le::IO::loadDefaultResourceGLTF("C:/Users/wweih/Desktop/untitled.gltf");
+	auto res = le::IO::loadDefaultResourceGLTF("cube.gltf");
 
 	lesm::Scene smScene;
 	smScene.rootObject = res;
@@ -69,13 +66,6 @@ int WINAPI wWinMain(
 		auto time = 1.0 * (t_end - t_begin) / CLOCKS_PER_SEC;
 		if (time > 2) {
 			t_begin = t_end;
-
-			////auto res = le::IO::loadDefaultResourceAssimp("C:/Users/wweih/Desktop/untitled.blend");
-			//auto res = le::IO::loadDefaultResourceGLTF("C:/Users/wweih/Desktop/untitled.gltf");
-			//lesm::Scene smScene;
-			//smScene.rootObject = res;
-			//smScene.activeCamera = smScene.search<lesm::Camera>("Camera");
-			//scene = smScene.getRenderingScene();
 		}
 	};
 

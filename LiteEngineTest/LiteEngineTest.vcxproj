@@ -108,6 +108,9 @@
       <FileType>Document</FileType>
     </None>
     <None Include="packages.config" />
+    <CopyFileToFolders Include="Resource\cube.gltf">
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LiteEngine\LiteEngine.vcxproj">
