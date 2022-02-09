@@ -501,9 +501,10 @@ namespace LiteEngine::Rendering {
 			std::shared_ptr<InputLayout> inputLayout,
 			std::shared_ptr<ConstantBuffer> customConstantBuffer = nullptr
 		) {
-			auto fixedConstantBuffer = this->createConstantBuffer(FixedPerobjectConstantData());
+			static auto fixedConstantBuffer = this->createConstantBuffer(FixedPerobjectConstantData());
+			
 			return std::shared_ptr<MeshObject>(new MeshObject(mesh, material,
-				inputLayout, fixedConstantBuffer, customConstantBuffer));
+				inputLayout, fixedConstantBuffer->getSharedInstance(), customConstantBuffer));
 		}
 
 		void renderFrame(const RenderingScene& scene) {
