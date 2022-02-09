@@ -471,23 +471,23 @@ namespace LiteEngine::IO {
 
 
         out->texBaseColor = loadTexture(mat.pbrMetallicRoughness.baseColorTexture.index, model);
-        constants.uvBaseColor = mat.pbrMetallicRoughness.baseColorTexture.texCoord;
+        if(out->texBaseColor) constants.uvBaseColor = mat.pbrMetallicRoughness.baseColorTexture.texCoord;
         
         out->texEmissionColor = loadTexture(mat.emissiveTexture.index, model);
-        constants.uvEmissionColor = mat.emissiveTexture.texCoord;
+        if(out->texEmissionColor) constants.uvEmissionColor = mat.emissiveTexture.texCoord;
         
         out->texMetallic = nullptr; // 不支持纹理
         constants.uvMetallic = UINT32_MAX;
         
         out->texRoughness = loadTexture(mat.pbrMetallicRoughness.metallicRoughnessTexture.index, model);
-        constants.uvRoughness = mat.pbrMetallicRoughness.metallicRoughnessTexture.texCoord;
+        if(out->texRoughness)constants.uvRoughness = mat.pbrMetallicRoughness.metallicRoughnessTexture.texCoord;
 
         out->texAO = loadTexture(mat.occlusionTexture.index, model);
-        constants.uvAO = mat.occlusionTexture.texCoord;
+        if(out->texAO)constants.uvAO = mat.occlusionTexture.texCoord;
         constants.occlusionStrength = (float)mat.occlusionTexture.strength;
 
         out->texNormal = loadTexture(mat.normalTexture.index, model);
-        constants.uvNormal = mat.normalTexture.texCoord;
+        if(out->texNormal)constants.uvNormal = mat.normalTexture.texCoord;
         constants.normalMapScale = (float)mat.normalTexture.scale;
 
         // 不需要设置 default：只要 uv 没有设置，就不会去读取纹理的
@@ -558,20 +558,31 @@ namespace LiteEngine::IO {
         } else if (isLight) {
             auto inLight = model.lights[lightID];
             auto outLight = new SceneManagement::Light();
+            // TODO: point and spot lights use luminous intensity in candela (lm/sr) 
+            // while directional lights use illuminance in lux (lm/m2)
+            outLight->shadow = Rendering::LightShadow::LIGHT_SHADOW_HARD;
+            outLight->maximumDistance =
+                inLight.range > 0 ? (float)inLight.range : std::numeric_limits<float>::infinity();
+            auto intensity = inLight.intensity;
             if (inLight.type == "point") {
-                outLight->data.type = Rendering::LightType::LIGHT_TYPE_POINT;
-                outLight->data.shadow = Rendering::LightShadow::LIGHT_SHADOW_EMPTY;
-                outLight->data.intensity = DirectX::XMFLOAT3{
-                    (float)(inLight.color[0] * inLight.intensity),
-                    (float)(inLight.color[1] * inLight.intensity),
-                    (float)(inLight.color[2] * inLight.intensity)
-                };
-                outLight->data.maximumDistance =
-                    inLight.range > 0 ? (float)inLight.range : std::numeric_limits<float>::infinity();
+                outLight->type = Rendering::LightType::LIGHT_TYPE_POINT;
+                intensity /= 333.33;
+            } else if (inLight.type == "directional") {
+                outLight->type = Rendering::LightType::LIGHT_TYPE_DIRECTIONAL;
+                outLight->direction_L = DirectX::XMFLOAT3{ 0, 0, -1 };
+            } else if (inLight.type == "spot") {
+                outLight->type = Rendering::LightType::LIGHT_TYPE_SPOT;
+                outLight->innerConeAngle = (float)inLight.spot.innerConeAngle;
+                outLight->outerConeAngle = (float)inLight.spot.outerConeAngle;
+                outLight->direction_L = DirectX::XMFLOAT3{ 0, 0, -1 };
+            } else {
+                throw std::exception("unexpected light type");
             }
-            else {
-                assert(false);
-            }
+            outLight->intensity = DirectX::XMFLOAT3{
+                (float)(inLight.color[0] * intensity),
+                (float)(inLight.color[1] * intensity),
+                (float)(inLight.color[2] * intensity)
+            };
             outNode = decltype(outNode)(outLight);
         } else if(isMesh) {
             outNode = decltype(outNode)(new SceneManagement::Object());

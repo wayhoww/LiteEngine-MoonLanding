@@ -72,7 +72,13 @@ namespace LiteEngine::SceneManagement {
 	};
 
 	struct Light : public Object {
-		Rendering::LightDesc data{};
+		uint32_t type;						// all
+		uint32_t shadow;					// all
+		float innerConeAngle;			    // spot
+		float outerConeAngle;				// spot
+		float maximumDistance;				// spot & point
+		DirectX::XMFLOAT3 direction_L;		// spot & directional
+		DirectX::XMFLOAT3 intensity;		// all
 	};
 
 	struct Scene {
@@ -106,10 +112,27 @@ namespace LiteEngine::SceneManagement {
 				meshObj->transform = newTransform;
 				dest->meshObjects.push_back(meshObj);
 			} else if (auto light = std::dynamic_pointer_cast<Light>(node); light) {
-				dest->lights.push_back(light->data);
+				Rendering::LightDesc lightDesc;
+				
+				lightDesc.type = light->type;
+				lightDesc.innerConeAngle = light->innerConeAngle;
+				lightDesc.outerConeAngle = light->outerConeAngle;
+				lightDesc.intensity = light->intensity;
+				lightDesc.shadow = light->shadow;
+				lightDesc.maximumDistance = light->maximumDistance;
+
+				// normal
+				DirectX::XMVECTOR dir_L = DirectX::XMLoadFloat3(&light->direction_L);
+				auto dir_W = DirectX::XMVector3TransformNormal(dir_L, newTransform);
+				DirectX::XMStoreFloat3(&lightDesc.direction_W, dir_W);
+
+				// position
+				// 因为原来在原点，所有不在意 scale 和 rotate
 				DirectX::XMFLOAT4 trans;
 				DirectX::XMStoreFloat4(&trans, newTransform.r[3]);
-				dest->lights.rbegin()->position_W = { trans.x, trans.y, trans.z };
+				lightDesc.position_W = { trans.x, trans.y, trans.z };
+
+				dest->lights.push_back(lightDesc);
 			} else if (auto camera = std::dynamic_pointer_cast<Camera>(node); camera && camera->name == activeCamera->name) {
 				dest->camera = camera->data;
 				auto det = DirectX::XMMatrixDeterminant(newTransform);

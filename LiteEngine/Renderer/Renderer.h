@@ -29,19 +29,18 @@ namespace LiteEngine::Rendering {
 
 	struct alignas(16) LightDesc {
 		// NOTE: 不要忘记修改 hlsli
-
 		uint32_t type;						// all
 		uint32_t shadow;					// all
-		float cosMaxLightingAngle;			// spot
-		float maximumDistance;				// spot & point
-
+		float innerConeAngle;			    // spot
+		float outerConeAngle;				// spot
+		
 		DirectX::XMFLOAT3 position_W;		// spot & point
-	private:
-		float _space1;						// 不知道为什么要加 space...
-	public:
+		float maximumDistance;				// spot & point
+	
 		DirectX::XMFLOAT3 direction_W;		// spot & directional
 	private:
 		float _space2;
+
 	public:
 		DirectX::XMFLOAT3 intensity;		// all
 	};

@@ -6,10 +6,12 @@
 struct Light {
 	int type;						// all
 	int shadow;						// all
-	float cosMaxLightingAngle;		// spot
+	float innerConeAngle;			    // spot
+	float outerConeAngle;				// spot
+	
+	float3 position_W;			// spot & point
 	float maximumDistance;			// spot & point
 
-	float3 position_W;			// spot & point
 	float3 direction_W;			// spot & directional
 	float3 intensity;			// all
 };

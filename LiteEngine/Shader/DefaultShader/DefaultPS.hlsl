@@ -9,6 +9,8 @@
 //#define SLOT_AMBIENT_OCCLUSION	4
 //#define SLOT_NORMAL				5
 
+const static uint N_TEXCOORDS = 2;
+
 cbuffer DefaultPSConstant : register(REGISTER_PS_MATERIAL) {
 	float4 c_baseColor;
 	float4 c_emissionColor;
@@ -49,17 +51,14 @@ sampler sampNormal: register(s5);
 
 
 float4 main(Default_VS_OUTPUT pdata) : SV_TARGET{
-	float4 baseColor;
 
-	if (uvBaseColor == 0) {
-		baseColor = texBaseColor.Sample(sampBaseColor, pdata.texCoord0);
-	} else if (uvBaseColor == 1) {
-		baseColor = texBaseColor.Sample(sampBaseColor, pdata.texCoord1);
-	} else {
-		baseColor = c_baseColor;
-	}
+	float2 texCoords[2] = { pdata.texCoord0, pdata.texCoord1 };
+	float4 ZERO4 = { 0, 0, 0, 0 };
 
-	baseColor *= pdata.color;
+	float4 baseColor = pdata.color * 
+		( uvBaseColor < N_TEXCOORDS ? 
+		  pow(max(ZERO4, texBaseColor.Sample(sampBaseColor, texCoords[uvBaseColor])), 2.2)
+	    : c_baseColor );
 
 	// ambient
 	float3 output = float3(0, 0, 0); // baseColor.xyz* float3(0.1, 0.1, 0.1);
