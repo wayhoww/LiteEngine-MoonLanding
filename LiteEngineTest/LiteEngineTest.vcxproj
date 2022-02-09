@@ -84,22 +84,6 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="cube.mtl">
-      <DeploymentContent>false</DeploymentContent>
-      <FileType>Document</FileType>
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
-    </CopyFileToFolders>
-  </ItemGroup>
-  <ItemGroup>
-    <CopyFileToFolders Include="cube.obj">
-      <FileType>Document</FileType>
-      <DeploymentContent>false</DeploymentContent>
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
-    </CopyFileToFolders>
-  </ItemGroup>
-  <ItemGroup>
     <FxCompile Update="C:\Users\wweih\source\repos\MoonLanding\LiteEngine\LiteEngine\Shader\BasicMaterialPSWithoutNormalMap.hlsl">
       <FileType>Document</FileType>
     </FxCompile>
@@ -124,9 +108,6 @@
       <FileType>Document</FileType>
     </None>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <CopyFileToFolders Include="tex.png" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LiteEngine\LiteEngine.vcxproj">
