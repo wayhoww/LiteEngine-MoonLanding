@@ -16,19 +16,37 @@ cbuffer DefaultPSConstant : register(REGISTER_PS_MATERIAL) {
 	float c_metallic;
 	float c_roughness;
 	float c_anisotropy;
-	uint uvBaseColor;
+	float c_occlusionStrength;
 
+	float c_normalScale;
+	uint uvBaseColor;
 	uint uvEmissionColor;
 	uint uvMetallic;
+
 	uint uvRoughness;
 	uint uvAO;
-
 	uint uvNormal;
 };
 
 
 Texture2D texBaseColor: register(t0);
 sampler sampBaseColor: register(s0);
+
+Texture2D texEmissionColor: register(t1);
+sampler sampEmissionColor: register(s1);
+
+Texture2D texMetallic: register(t2);
+sampler sampMetallic: register(s2);
+
+Texture2D texRoughness: register(t3);
+sampler sampRoughness: register(s3);
+
+Texture2D texAO: register(t4);
+sampler sampAO: register(s5);
+
+Texture2D texNormal: register(t5);
+sampler sampNormal: register(s5);
+
 
 float4 main(Default_VS_OUTPUT pdata) : SV_TARGET{
 	float4 baseColor;

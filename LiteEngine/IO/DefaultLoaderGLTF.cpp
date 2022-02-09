@@ -414,13 +414,13 @@ namespace LiteEngine::IO {
     //    return (uint32_t)reg.size() - 1;
     //}
     std::shared_ptr<Rendering::ShaderResourceView> loadTexture(
-        const tinygltf::TextureInfo& textureInfo,
+        int textureInfoIndex,
         const tinygltf::Model& model
     ) {
         auto& renderer = Rendering::Renderer::getInstance();
 
-        if (textureInfo.index >= 0) {
-            auto textureObj = model.textures[textureInfo.index];
+        if (textureInfoIndex >= 0) {
+            auto textureObj = model.textures[textureInfoIndex];
             auto textureSource = model.images[textureObj.source];
 
             if (textureSource.bufferView < 0) {
@@ -466,43 +466,44 @@ namespace LiteEngine::IO {
    
         constants.anisotropy  = 0; // 确实不支持。。 当然，有 extension
 
-        out->consantBuffers = sConstantBuffer->getSharedInstance();
-        out->consantBuffers->cpuData<decltype(constants)>() = constants;
-
+       
         // out.shader is set by the constructor
-        out->texBaseColor = loadTexture(mat.pbrMetallicRoughness.baseColorTexture, model);
-        constants.uvBaseColor = mat.pbrMetallicRoughness.baseColorTexture.index;
-        if (!out->texBaseColor) {
-            static std::shared_ptr<Rendering::ShaderResourceView> defaultTexBaseColor(
-                renderer.createDefaultTexture({1, 1, 1, 1}, 2)
-            );
-            out->texBaseColor = defaultTexBaseColor;
-        }
+
+
+        out->texBaseColor = loadTexture(mat.pbrMetallicRoughness.baseColorTexture.index, model);
+        constants.uvBaseColor = mat.pbrMetallicRoughness.baseColorTexture.texCoord;
+        
+        out->texEmissionColor = loadTexture(mat.emissiveTexture.index, model);
+        constants.uvEmissionColor = mat.emissiveTexture.texCoord;
+        
+        out->texMetallic = nullptr; // 不支持纹理
+        constants.uvMetallic = UINT32_MAX;
+        
+        out->texRoughness = loadTexture(mat.pbrMetallicRoughness.metallicRoughnessTexture.index, model);
+        constants.uvRoughness = mat.pbrMetallicRoughness.metallicRoughnessTexture.texCoord;
+
+        out->texAO = loadTexture(mat.occlusionTexture.index, model);
+        constants.uvAO = mat.occlusionTexture.texCoord;
+        constants.occlusionStrength = (float)mat.occlusionTexture.strength;
+
+        out->texNormal = loadTexture(mat.normalTexture.index, model);
+        constants.uvNormal = mat.normalTexture.texCoord;
+        constants.normalMapScale = (float)mat.normalTexture.scale;
+
+        // 不需要设置 default：只要 uv 没有设置，就不会去读取纹理的
 
         // 这个 sampler state 应该是随着 texture 变化的
         CD3D11_SAMPLER_DESC desc{ CD3D11_DEFAULT() };
+        out->sampAO = renderer.createSamplerState(desc);
         out->sampBaseColor = renderer.createSamplerState(desc);
+        out->sampEmissionColor = renderer.createSamplerState(desc);
+        out->sampMetallic = renderer.createSamplerState(desc);
+        out->sampNormal = renderer.createSamplerState(desc);
+        out->sampRoughness = renderer.createSamplerState(desc);
 
-        /*
-        aiString path;
-
-        mat.GetTexture(aiTextureType_BASE_COLOR, 0, &path, nullptr, &out.constants.uvBaseColor, nullptr, nullptr, nullptr);
-        out.texBaseColor = registerPath(path, textureReg);
-
-        mat.GetTexture(aiTextureType_EMISSION_COLOR, 0, &path, nullptr, &out.constants.uvEmissionColor, nullptr, nullptr, nullptr);
-        out.texEmissionColor = registerPath(path, textureReg);
-
-        mat.GetTexture(aiTextureType_METALNESS, 0, &path, nullptr, &out.constants.uvMetallic, nullptr, nullptr, nullptr);
-        out.texMetallic = registerPath(path, textureReg);
-
-        mat.GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path, nullptr, &out.constants.uvRoughness, nullptr, nullptr, nullptr);
-        out.texRoughness = registerPath(path, textureReg);
-
-        mat.GetTexture(aiTextureType_AMBIENT_OCCLUSION, 0, &path, nullptr, &out.constants.uvAO, nullptr, nullptr, nullptr);
-        out.texAO = registerPath(path, textureReg);
-
-        mat.GetTexture(aiTextureType_NORMALS, 0, &path, nullptr, &out.constants.uvNormal, nullptr, nullptr, nullptr);
-        out.texNormal = registerPath(path, textureReg);*/
+        
+        out->consantBuffers = sConstantBuffer->getSharedInstance();
+        out->consantBuffers->cpuData<decltype(constants)>() = constants;
 
         return out;
     }

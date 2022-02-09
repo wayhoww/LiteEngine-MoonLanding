@@ -50,13 +50,15 @@ namespace LiteEngine::SceneManagement {
 		float metallic = 0;
 		float roughness = 1;
 		float anisotropy = 0;
+		float occlusionStrength = 0;
+
+		float normalMapScale = 1;
 		uint32_t uvBaseColor = UINT32_MAX;
-		
 		uint32_t uvEmissionColor = UINT32_MAX;
 		uint32_t uvMetallic = UINT32_MAX;
+
 		uint32_t uvRoughness = UINT32_MAX;
 		uint32_t uvAO = UINT32_MAX;
-
 		uint32_t uvNormal= UINT32_MAX;
 	};
 	static_assert(sizeof(DefaultMaterialConstantData) == 5 * 4 * 4);
@@ -72,11 +74,11 @@ namespace LiteEngine::SceneManagement {
 		}
 
 		std::shared_ptr<Rendering::SamplerState> sampBaseColor;
-		// std::shared_ptr<Rendering::SamplerState> sampBaseColor;
-		// std::shared_ptr<Rendering::SamplerState> sampBaseColor;
-		// std::shared_ptr<Rendering::SamplerState> sampBaseColor;
-		// std::shared_ptr<Rendering::SamplerState> sampBaseColor;
-		// std::shared_ptr<Rendering::SamplerState> sampBaseColor;
+		std::shared_ptr<Rendering::SamplerState> sampEmissionColor;
+		std::shared_ptr<Rendering::SamplerState> sampMetallic;
+		std::shared_ptr<Rendering::SamplerState> sampRoughness;
+		std::shared_ptr<Rendering::SamplerState> sampAO;
+		std::shared_ptr<Rendering::SamplerState> sampNormal;
 
 		std::shared_ptr<Rendering::ShaderResourceView> texBaseColor;
 		std::shared_ptr<Rendering::ShaderResourceView> texEmissionColor;
@@ -86,11 +88,25 @@ namespace LiteEngine::SceneManagement {
 		std::shared_ptr<Rendering::ShaderResourceView> texNormal;
 
 		virtual std::vector<std::pair<std::shared_ptr<Rendering::ShaderResourceView>, uint32_t>> getShaderResourceViews() const {
-			return { {texBaseColor, (uint32_t)DefaultShaderSlot::BASE_COLOR} };
+			std::vector<std::pair<std::shared_ptr<Rendering::ShaderResourceView>, uint32_t>> out;
+			if (texBaseColor) out.push_back({ texBaseColor, (uint32_t)DefaultShaderSlot::BASE_COLOR });
+			if (texEmissionColor) out.push_back({ texEmissionColor, (uint32_t)DefaultShaderSlot::EMISSION_COLOR });
+			if (texMetallic) out.push_back({ texMetallic, (uint32_t)DefaultShaderSlot::METALLIC });
+			if (texRoughness) out.push_back({ texRoughness, (uint32_t)DefaultShaderSlot::ROUGHNESS });
+			if (texAO) out.push_back({ texAO, (uint32_t)DefaultShaderSlot::AMBIENT_OCCLUSION });
+			if (texNormal) out.push_back({ texNormal, (uint32_t)DefaultShaderSlot::NORMAL });
+			return out;
 		}
 
 		virtual std::vector<std::pair<std::shared_ptr<Rendering::SamplerState>, uint32_t>> getSamplerStates() const {
-			return { {sampBaseColor, (uint32_t)DefaultShaderSlot::BASE_COLOR} };
+			std::vector<std::pair<std::shared_ptr<Rendering::SamplerState>, uint32_t>> out;
+			if (sampBaseColor) out.push_back({ sampBaseColor, (uint32_t)DefaultShaderSlot::BASE_COLOR });
+			if (sampEmissionColor) out.push_back({ sampEmissionColor, (uint32_t)DefaultShaderSlot::EMISSION_COLOR });
+			if (sampMetallic) out.push_back({ sampMetallic, (uint32_t)DefaultShaderSlot::METALLIC });
+			if (sampRoughness) out.push_back({ sampRoughness, (uint32_t)DefaultShaderSlot::ROUGHNESS });
+			if (sampAO) out.push_back({ sampAO, (uint32_t)DefaultShaderSlot::AMBIENT_OCCLUSION });
+			if (sampNormal) out.push_back({ sampNormal, (uint32_t)DefaultShaderSlot::NORMAL });
+			return out;
 		}
 
 		virtual std::shared_ptr<Rendering::InputLayout> getInputLayout() const {
