@@ -465,8 +465,6 @@ namespace LiteEngine::IO {
         constants.roughness = (float)mat.pbrMetallicRoughness.roughnessFactor;
    
         constants.anisotropy  = 0; // 确实不支持。。 当然，有 extension
-
-       
         // out.shader is set by the constructor
 
 
@@ -566,7 +564,8 @@ namespace LiteEngine::IO {
             auto intensity = inLight.intensity;
             if (inLight.type == "point") {
                 outLight->type = Rendering::LightType::LIGHT_TYPE_POINT;
-                intensity /= 333.33;
+                // 一个随意设置的数字。。旨在让渲染器适应 blender 的光照设置
+                intensity /= 100;
             } else if (inLight.type == "directional") {
                 outLight->type = Rendering::LightType::LIGHT_TYPE_DIRECTIONAL;
                 outLight->direction_L = DirectX::XMFLOAT3{ 0, 0, -1 };
@@ -587,13 +586,20 @@ namespace LiteEngine::IO {
         } else if(isMesh) {
             outNode = decltype(outNode)(new SceneManagement::Object());
 
+            static std::shared_ptr<SceneManagement::DefaultMaterial> defaultMaterial(
+                new SceneManagement::DefaultMaterial()
+            );
+
+            defaultMaterial->consantBuffers = Rendering::Renderer::getInstance().createConstantBuffer(SceneManagement::DefaultMaterialConstantData());
+
             for (auto [mesh, matID, name] : meshes[inNode.mesh]) {
                 auto meshObj = new SceneManagement::Mesh();
                 meshObj->name = name;
                 meshObj->parent = outNode;
                 meshObj->data = mesh;
                 // TODO default material
-                meshObj->material = materials[matID];
+                if (matID == UINT32_MAX) meshObj->material = defaultMaterial;
+                else meshObj->material = materials[matID];
                 meshObj->transT = DirectX::XMFLOAT3{ 0, 0, 0 };
                 meshObj->transR = DirectX::XMVECTOR{ 0, 0, 0, 1 };
                 meshObj->transS = DirectX::XMFLOAT3{ 1, 1, 1 };
