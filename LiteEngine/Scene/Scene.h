@@ -8,6 +8,10 @@
 #include <type_traits>
 
 namespace LiteEngine::SceneManagement {
+
+	// SceneManagement 模块不要有 Renderer 调用，以便在另一个线程提前准备数据
+
+
 	// Object: 具有层次结构；具有空间变换 TRS
 	// Component: 定义了若干个 property，可以设置 key-value
 
