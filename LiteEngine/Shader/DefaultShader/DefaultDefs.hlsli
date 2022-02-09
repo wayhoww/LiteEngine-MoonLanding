@@ -1,6 +1,8 @@
 #ifndef LITE_ENGINE_SHAREDR_DEFAULT_SHADER_DEFAULT_DEFS_HLSLI
 #define LITE_ENGINE_SHAREDR_DEFAULT_SHADER_DEFAULT_DEFS_HLSLI
 
+#include "../Definitions.hlsli"
+
 struct Default_VS_OUTPUT {
 	// vertex shader 应当传一个 clip space 的，
 	// 但是 pixel shader 接收到的是 screen space 

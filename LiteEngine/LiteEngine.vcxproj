@@ -74,6 +74,14 @@
       <AdditionalLibraryDirectories>
       </AdditionalLibraryDirectories>
     </Lib>
+    <FxCompile>
+      <PreprocessorDefinitions>DEBUG</PreprocessorDefinitions>
+    </FxCompile>
+    <FxCompile>
+      <AdditionalOptions>
+      </AdditionalOptions>
+      <ShaderModel>5.0</ShaderModel>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -98,6 +106,9 @@
       </AdditionalLibraryDirectories>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Lib>
+    <FxCompile>
+      <ShaderModel>5.0</ShaderModel>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="IO\DefaultLoaderGLTF.cpp" />
@@ -134,6 +145,8 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </AdditionalOptions>
     </FxCompile>
     <FxCompile Include="Shader\DefaultShader\DefaultVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>

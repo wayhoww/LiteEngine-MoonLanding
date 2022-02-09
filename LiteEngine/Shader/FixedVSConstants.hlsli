@@ -6,6 +6,8 @@
 #ifndef LITE_ENGINE_SHAREDR_VS_FIXED_CONSTANTS_HLSLI
 #define LITE_ENGINE_SHAREDR_VS_FIXED_CONSTANTS_HLSLI
 
+#include "Definitions.hlsli"
+
 cbuffer FixedLongtermVSConstants : register(b3) {
 	float widthInPixel;
 	float heightInPixel;
