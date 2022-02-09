@@ -589,9 +589,12 @@ namespace LiteEngine::IO {
             static std::shared_ptr<SceneManagement::DefaultMaterial> defaultMaterial(
                 new SceneManagement::DefaultMaterial()
             );
+            static std::once_flag onceFlag;
+            std::call_once(onceFlag, [&]() {
+                defaultMaterial->consantBuffers = Rendering::Renderer::getInstance().createConstantBuffer(SceneManagement::DefaultMaterialConstantData());
+            });
 
-            defaultMaterial->consantBuffers = Rendering::Renderer::getInstance().createConstantBuffer(SceneManagement::DefaultMaterialConstantData());
-
+            
             for (auto [mesh, matID, name] : meshes[inNode.mesh]) {
                 auto meshObj = new SceneManagement::Mesh();
                 meshObj->name = name;

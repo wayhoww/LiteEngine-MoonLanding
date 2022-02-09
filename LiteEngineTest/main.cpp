@@ -54,12 +54,14 @@ int WINAPI wWinMain(
 	window.resizeClientArea((int)(1080 * smScene.activeCamera->data.aspectRatio), 1080);
 	renderer.resizeFitWindow();
 
-	std::shared_ptr<ler::RenderingScene> scene = smScene.getRenderingScene();
 	
 	auto t_begin = clock();
 
 	window.renderCallback = [&](const le::RenderingWindow& window) {
-		
+		// 其实 getRenderingScene 改一下可以做到完全可以在另外一个线程访问，完全不涉及图形 API
+		// Rendering::MeshObject 存在 Mesh: Object 中就好
+
+		std::shared_ptr<ler::RenderingScene> scene = smScene.getRenderingScene();
 		renderer.renderFrame(*scene);
 
 		auto t_end = clock();
