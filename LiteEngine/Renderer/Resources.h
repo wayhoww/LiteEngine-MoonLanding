@@ -270,7 +270,6 @@ namespace LiteEngine::Rendering {
 
 	class MeshObject {
 		std::shared_ptr<Mesh> mesh;
-		std::shared_ptr<Material> material;
 		// 如果 Mesh 的布局 和 Shader 不匹配，那么创建 InputLayout 的时候应该就会报错吧？
 
 		std::shared_ptr<InputLayout> inputLayout;
@@ -294,6 +293,7 @@ namespace LiteEngine::Rendering {
 		}
 	public:
 
+		std::shared_ptr<Material> material;
 		DirectX::XMMATRIX transform = DirectX::XMMatrixIdentity(); // 4 x 4 x 4 = 128 bytes, local_to_world
 
 		MeshObject(

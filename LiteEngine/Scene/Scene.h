@@ -64,7 +64,7 @@ namespace LiteEngine::SceneManagement {
 	struct Mesh : public Object {
 		// 必须设置一个材料。不同的 vbo 结构不一样，做不了默认材料
 		std::shared_ptr<Material> material;
-		std::shared_ptr<Rendering::Mesh> data;
+		std::shared_ptr<Rendering::MeshObject> data;
 	};
 
 	struct Camera : public Object {
@@ -92,23 +92,16 @@ namespace LiteEngine::SceneManagement {
 		) {
 			if (node == nullptr) return;
 
-			auto& renderer = Rendering::Renderer::getInstance();
-
 			// DirectX: 行主序
 			auto newTransform = DirectX::XMMatrixMultiply(transform, node->getTransformMatrix());
 
 			if (auto mesh = std::dynamic_pointer_cast<Mesh>(node); mesh) {
+				auto& meshObj = mesh->data;
 				std::shared_ptr<Rendering::Material> mat(new Rendering::Material());
-				mat->constants = mesh->material->consantBuffers;
-				mat->samplerStates = mesh->material->getSamplerStates();
-				mat->shaderResourceViews = mesh->material->getShaderResourceViews();
-				mat->shader = mesh->material->shader;
-
-				auto meshObj = renderer.createMeshObject(mesh->data,
-					mat,
-					mesh->material->getInputLayout(),
-					nullptr
-				);
+				meshObj->material->constants = mesh->material->consantBuffers;
+				meshObj->material->samplerStates = mesh->material->getSamplerStates();
+				meshObj->material->shaderResourceViews = mesh->material->getShaderResourceViews();
+				meshObj->material->shader = mesh->material->shader;
 				meshObj->transform = newTransform;
 				dest->meshObjects.push_back(meshObj);
 			} else if (auto light = std::dynamic_pointer_cast<Light>(node); light) {

@@ -589,9 +589,10 @@ namespace LiteEngine::IO {
             static std::shared_ptr<SceneManagement::DefaultMaterial> defaultMaterial(
                 new SceneManagement::DefaultMaterial()
             );
+            auto& renderer = Rendering::Renderer::getInstance();
             static std::once_flag onceFlag;
             std::call_once(onceFlag, [&]() {
-                defaultMaterial->consantBuffers = Rendering::Renderer::getInstance().createConstantBuffer(SceneManagement::DefaultMaterialConstantData());
+                defaultMaterial->consantBuffers = renderer.createConstantBuffer(SceneManagement::DefaultMaterialConstantData());
             });
 
             
@@ -599,10 +600,18 @@ namespace LiteEngine::IO {
                 auto meshObj = new SceneManagement::Mesh();
                 meshObj->name = name;
                 meshObj->parent = outNode;
-                meshObj->data = mesh;
-                // TODO default material
+
                 if (matID == UINT32_MAX) meshObj->material = defaultMaterial;
                 else meshObj->material = materials[matID];
+
+                meshObj->data = renderer.createMeshObject(
+                    mesh,
+                    std::shared_ptr<Rendering::Material>(new Rendering::Material()),
+                    meshObj->material->getInputLayout(),
+                    nullptr
+                );;
+
+
                 meshObj->transT = DirectX::XMFLOAT3{ 0, 0, 0 };
                 meshObj->transR = DirectX::XMVECTOR{ 0, 0, 0, 1 };
                 meshObj->transS = DirectX::XMFLOAT3{ 1, 1, 1 };
