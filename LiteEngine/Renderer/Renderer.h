@@ -135,6 +135,7 @@ namespace LiteEngine::Rendering {
 		int64_t time_in_ticks = 0;
 		int64_t timer_frequency;
 		double currentFPS = -1;
+		double averageFPS = -1;
 		double desiredFPS = 0;
 
 		uint64_t id = 0;
@@ -507,6 +508,14 @@ namespace LiteEngine::Rendering {
 				inputLayout, fixedConstantBuffer->getSharedInstance(), customConstantBuffer));
 		}
 
+		double getCurrentFPS() const {
+			return this->currentFPS;
+		}
+
+		double getAverageFPS() const {
+			return this->averageFPS;
+		}
+
 		void renderFrame(const RenderingScene& scene) {
 			// prerender
 
@@ -520,8 +529,13 @@ namespace LiteEngine::Rendering {
 			auto elapsedTicks = currentTime.QuadPart - this->time_in_ticks;
 			this->time_in_ticks = currentTime.QuadPart;
 
-			if (this->currentFPS < 0) currentFPS = this->desiredFPS > 0 ? this->desiredFPS : 60;
-			else currentFPS = 1.0 / elapsedTicks * this->timer_frequency;
+			if (this->currentFPS < 0) {
+				this->currentFPS = this->desiredFPS > 0 ? this->desiredFPS : 60;
+				this->averageFPS = this->currentFPS;
+			} else {
+				this->currentFPS = 1.0 / elapsedTicks * this->timer_frequency;
+				this->averageFPS = this->averageFPS * 0.95 + this->currentFPS * (1 - 0.95);
+			}
 
 			this->updateFixedPerframeConstantBuffers(scene);
 

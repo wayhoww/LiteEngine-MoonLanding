@@ -64,6 +64,12 @@ int WINAPI wWinMain(
 		std::shared_ptr<ler::RenderingScene> scene = smScene.getRenderingScene();
 		renderer.renderFrame(*scene);
 
+		auto fps = renderer.getAverageFPS();
+		wchar_t buffer[100];
+		swprintf_s(buffer, L"Recent Average FPS: %3.0lf", fps);
+		SetWindowText(window.getHwnd(), buffer);
+		
+
 		auto t_end = clock();
 		auto time = 1.0 * (t_end - t_begin) / CLOCKS_PER_SEC;
 		if (time > 2) {
