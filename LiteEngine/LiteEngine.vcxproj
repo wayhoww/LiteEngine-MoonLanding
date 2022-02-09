@@ -127,6 +127,8 @@
     <ClInclude Include="Scene\Scene.h" />
     <ClInclude Include="ThirdParty\TinyObjLoader.h" />
     <ClInclude Include="ThirdParty\tiny_gltf\json.hpp" />
+    <ClInclude Include="ThirdParty\tiny_gltf\stb_image.h" />
+    <ClInclude Include="ThirdParty\tiny_gltf\stb_image_write.h" />
     <ClInclude Include="ThirdParty\tiny_gltf\tiny_gltf.h" />
     <ClInclude Include="Utilities\Utilities.h" />
     <ClInclude Include="Window\RenderingWindow.h" />
