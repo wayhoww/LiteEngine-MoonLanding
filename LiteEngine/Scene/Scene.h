@@ -149,6 +149,8 @@ namespace LiteEngine::SceneManagement {
 	};
 
 	struct Scene {
+		std::shared_ptr<Rendering::ShaderResourceView> skybox;
+
 		std::shared_ptr<Object> rootObject;
 		std::shared_ptr<Camera> activeCamera;
 
@@ -209,6 +211,21 @@ namespace LiteEngine::SceneManagement {
 				throw std::exception("no active camera");
 			}
 			std::shared_ptr<Rendering::RenderingScene> out(new Rendering::RenderingScene());
+			out->skybox = this->skybox;
+			// Z-up 右手系 -> Y-up 左手系
+			// C++ 中出现的所有矩阵都应该是用于右乘（vec * mat）的矩阵
+			out->skyboxTransform = {
+				0, 1, 0, 0,
+				0, 0, 1, 0,
+				-1, 0, 0, 0,
+				0, 0, 0, 1
+
+				// transpose
+				//0, 0, -1, 0,
+				//1, 0, 0, 0, 
+				//0, 1, 0, 0,
+				//0, 0, 0, 1
+			};
 			buildRenderingSceneRecursively(out, rootObject, DirectX::XMMatrixIdentity());
 			return out;
 		}

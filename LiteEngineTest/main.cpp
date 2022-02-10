@@ -61,6 +61,7 @@ int WINAPI wWinMain(
 	lesm::Scene smScene;
 	smScene.rootObject = res;
 	smScene.activeCamera = smScene.search<lesm::Camera>("Camera");
+	smScene.skybox = renderer.createCubeMapFromDDS(L"skybox.dds");
 
 	window.resizeClientArea((int)(1080 * smScene.activeCamera->data.aspectRatio), 1080);
 	renderer.resizeFitWindow();

@@ -82,9 +82,12 @@
     <None Include="Shader\FixedVSConstants.hlsli" />
     <None Include="packages.config" />
     <None Include="Shader\DefaultShader\DefaultDefs.hlsli" />
+    <None Include="Shader\SkyboxShader\SkyboxDefs.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\DefaultShader\DefaultPS.hlsl" />
     <FxCompile Include="Shader\DefaultShader\DefaultVS.hlsl" />
+    <FxCompile Include="Shader\SkyboxShader\SkyboxVS.hlsl" />
+    <FxCompile Include="Shader\SkyboxShader\SkyboxPS.hlsl" />
   </ItemGroup>
 </Project>

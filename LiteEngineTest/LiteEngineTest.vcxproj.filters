@@ -26,5 +26,6 @@
     <CopyFileToFolders Include="Resource\cube.gltf">
       <Filter>Resource Files</Filter>
     </CopyFileToFolders>
+    <CopyFileToFolders Include="Resource\skybox.dds" />
   </ItemGroup>
 </Project>

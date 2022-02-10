@@ -78,12 +78,16 @@ namespace LiteEngine::Rendering {
 		std::vector<LightDesc> lights;
 		std::vector<std::shared_ptr<MeshObject>> meshObjects;
 
-		// also probe skybox any many other..
+		std::shared_ptr<ShaderResourceView> skybox;
+		DirectX::XMMATRIX skyboxTransform = DirectX::XMMatrixIdentity();
+		// also probe and many other..
+
 	};
 
 	struct alignas(16) FixedPerframeVSConstantBufferData {
 		// NOTE: 不要忘记修改 hlsli
 		DirectX::XMMATRIX trans_W2V;
+		DirectX::XMMATRIX trans_V2W;
 		DirectX::XMMATRIX trans_V2C;
 		DirectX::XMMATRIX trans_W2C;
 		float timeInSecond;
@@ -119,7 +123,8 @@ namespace LiteEngine::Rendering {
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizerState;
-		Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
+		Microsoft::WRL::ComPtr<ID3D11DepthStencilState> normalDepthStencilState;
+		Microsoft::WRL::ComPtr<ID3D11DepthStencilState> skyBoxDepthStencilState;
 
 		std::shared_ptr<ConstantBuffer> fixedPerframeVSConstantBuffer;
 		std::shared_ptr<ConstantBuffer> fixedPerframePSConstantBuffer;
@@ -145,19 +150,22 @@ namespace LiteEngine::Rendering {
 			float timeInSecond = 1.0f * time_in_ticks / timer_frequency;
 			float currentFPS = (float)this->currentFPS;
 
+			auto& camera = scene.camera;
+
+			auto transDet_V2W = DirectX::XMMatrixDeterminant(camera.trans_W2V);
+			auto trans_V2W = DirectX::XMMatrixInverse(&transDet_V2W, camera.trans_W2V);
 
 			{
 				// perframe vs
-				auto& camera = scene.camera;
 				auto ar = camera.aspectRatio;
 				if (autoAdjustAspectRatio) ar = float(1.0 * this->width / this->height);
 				auto& data = this->fixedPerframeVSConstantBuffer->cpuData<FixedPerframeVSConstantBufferData>();
 				data.trans_W2V = camera.trans_W2V;
+				data.trans_V2W = trans_V2W;
 
 				if (camera.projectionType == RenderingScene::CameraInfo::ProjectionType::PERSPECTIVE) {
 					data.trans_V2C = DirectX::XMMatrixPerspectiveFovLH(camera.fieldOfViewYRadian, ar, camera.nearZ, camera.farZ);
-				}
-				else {
+				}else {
 					data.trans_V2C = DirectX::XMMatrixOrthographicLH(camera.viewWidth, camera.viewHeight, camera.nearZ, camera.farZ);
 				}
 
@@ -173,8 +181,7 @@ namespace LiteEngine::Rendering {
 				auto& camera = scene.camera;
 				auto& data = this->fixedPerframePSConstantBuffer->cpuData<FixedPerframePSConstantBufferData>();
 				data.trans_W2V = camera.trans_W2V;
-				auto det = DirectX::XMMatrixDeterminant(camera.trans_W2V);
-				data.trans_V2W = DirectX::XMMatrixInverse(&det, camera.trans_W2V);
+				data.trans_V2W = trans_V2W;
 
 				data.timeInSecond = timeInSecond;
 				data.currentFPS = currentFPS;
@@ -276,8 +283,12 @@ namespace LiteEngine::Rendering {
 			rasterizerStateDesc.CullMode = D3D11_CULL_NONE; // todo...
 			this->device->CreateRasterizerState(&rasterizerStateDesc, &this->rasterizerState);
 
-			CD3D11_DEPTH_STENCIL_DESC depthStencilDesc = CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT());
-			this->device->CreateDepthStencilState(&depthStencilDesc, &this->depthStencilState);
+			CD3D11_DEPTH_STENCIL_DESC normalDepthStencilDesc = CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT());
+			this->device->CreateDepthStencilState(&normalDepthStencilDesc, &this->normalDepthStencilState);
+
+			CD3D11_DEPTH_STENCIL_DESC skyboxDepthStencilDesc = CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT());
+			skyboxDepthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+			this->device->CreateDepthStencilState(&skyboxDepthStencilDesc, &this->skyBoxDepthStencilState);
 
 			this->fixedPerframeVSConstantBuffer = this->createConstantBuffer(FixedPerframeVSConstantBufferData());
 			this->fixedPerframePSConstantBuffer = this->createConstantBuffer(FixedPerframePSConstantBufferData());
@@ -486,7 +497,7 @@ namespace LiteEngine::Rendering {
 	public:
 		std::shared_ptr<ShaderResourceView> createSimpleTexture2DFromWIC(const std::wstring& file);
 		std::shared_ptr<ShaderResourceView> createSimpleTexture2DFromWIC(const uint8_t* memory, size_t size);
-
+		std::shared_ptr<ShaderResourceView> createCubeMapFromDDS(const std::wstring& file);
 
 		std::shared_ptr<InputLayout> createInputLayout(std::shared_ptr<InputElementDescriptions> desc, std::shared_ptr<Shader> shader) {
 			// TODO cache.
@@ -515,6 +526,8 @@ namespace LiteEngine::Rendering {
 		double getAverageFPS() const {
 			return this->averageFPS;
 		}
+
+		void renderSkybox(const RenderingScene& scene);
 
 		void renderFrame(const RenderingScene& scene) {
 			// prerender
@@ -547,8 +560,7 @@ namespace LiteEngine::Rendering {
 
 			context->ClearRenderTargetView(this->renderTargetView.Get(), bg_color);
 			context->ClearDepthStencilView(this->depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1, 0);
-
-			//context->UpdateSubresource(buffer_objects.vertex_constant_buffer.Get(), 0, nullptr, x_offset, 0, 0);
+			// context->UpdateSubresource(buffer_objects.vertex_constant_buffer.Get(), 0, nullptr, x_offset, 0, 0);
 
 			// TODO: stencil depth
 
@@ -572,7 +584,7 @@ namespace LiteEngine::Rendering {
 
 			// OM
 			context->OMSetRenderTargets(1, this->renderTargetView.GetAddressOf(), this->depthStencilView.Get());
-			context->OMSetDepthStencilState(this->depthStencilState.Get(), 1);	// TODO 没怎么看懂这个 1 是干什么的
+			context->OMSetDepthStencilState(this->normalDepthStencilState.Get(), 1);	// TODO 没怎么看懂这个 1 是干什么的
 
 			// PS & VS
 			this->setConstantBuffers();
@@ -582,7 +594,7 @@ namespace LiteEngine::Rendering {
 				obj->draw(context.Get());
 			}
 
-
+			this->renderSkybox(scene);
 
 			swapChain->Present(0, 0);
 		}

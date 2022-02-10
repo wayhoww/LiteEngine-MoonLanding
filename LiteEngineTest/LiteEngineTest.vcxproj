@@ -117,6 +117,9 @@
       <Project>{53c0eed6-8432-4226-ae0d-0270ba9473dc}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="Resource\skybox.dds" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\directxtex_desktop_win10.2021.11.8.1\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\packages\directxtex_desktop_win10.2021.11.8.1\build\native\directxtex_desktop_win10.targets')" />

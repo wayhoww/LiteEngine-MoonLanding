@@ -229,11 +229,21 @@ namespace LiteEngine::Rendering {
 			}
 
 			for (auto& [view, slot] : this->shaderResourceViews) {
-				context->PSSetShaderResources(slot, 1, view->getAddressOf());
+				if (view == nullptr) {
+					ID3D11ShaderResourceView* view = nullptr;
+					context->PSSetShaderResources(slot, 1, &view);
+				} else {
+					context->PSSetShaderResources(slot, 1, view->getAddressOf());
+				}
 			}
 
 			for (auto& [sampler, slot] : this->samplerStates) {
-				context->PSSetSamplers(slot, 1, sampler->getAddressOf());
+				if (sampler == nullptr) {
+					ID3D11SamplerState* sampler = nullptr;
+					context->PSSetSamplers(slot, 1, &sampler);
+				} else {
+					context->PSSetSamplers(slot, 1, sampler->getAddressOf());
+				}
 			}
 		}
 	};

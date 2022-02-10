@@ -16,6 +16,7 @@ cbuffer FixedLongtermVSConstants : register(b3) {
 
 cbuffer FixedPerframeVSConstants : register(b4) {
 	matrix trans_W2V;
+	matrix trans_V2W;
 	matrix trans_V2C;
 	matrix trans_W2C;
 	float timeInSecond;
