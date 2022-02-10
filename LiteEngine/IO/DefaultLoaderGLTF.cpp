@@ -593,6 +593,15 @@ namespace LiteEngine::IO {
             static std::once_flag onceFlag;
             std::call_once(onceFlag, [&]() {
                 defaultMaterial->consantBuffers = renderer.createConstantBuffer(SceneManagement::DefaultMaterialConstantData());
+
+                static auto defaultSampler = renderer.createSamplerState(CD3D11_SAMPLER_DESC(CD3D11_DEFAULT()));
+
+                defaultMaterial->sampAO = defaultSampler;
+                defaultMaterial->sampBaseColor = defaultSampler;
+                defaultMaterial->sampEmissionColor = defaultSampler;
+                defaultMaterial->sampMetallic = defaultSampler;
+                defaultMaterial->sampNormal = defaultSampler;
+                defaultMaterial->sampRoughness = defaultSampler;
             });
 
             

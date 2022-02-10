@@ -45,7 +45,7 @@ RenderingWindow::RenderingWindow(
 	int y,
 	int width,
 	int height,
-	std::function<void(const RenderingWindow&)> renderCallback
+	std::function<void(const RenderingWindow&, const std::vector<EventType>&)> renderCallback
 ) {
 	registerWndClass();
 	// 获取当前进程 .exe 的 hinstance
@@ -68,8 +68,12 @@ LRESULT RenderingWindow::event(UINT msg, WPARAM wparam, LPARAM lparam) {
 	if (msg == WM_DESTROY) {
 		this->windowShouldClose = true;
 		return 0;
-	} 
-	return DefWindowProc(hwnd, msg, wparam, lparam);
+	} else if (msg == WM_KEYDOWN) {
+		this->events.push_back({ msg, wparam, lparam });
+		return 0;
+	} else {
+		return DefWindowProc(hwnd, msg, wparam, lparam);
+	}
 }
 
 void RenderingWindow::runRenderingLoop() {
@@ -87,7 +91,9 @@ void RenderingWindow::runRenderingLoop() {
 }
 
 void RenderingWindow::render() {
-	this->renderCallback(*this);
+	// 这个函数执行的时候不会有新的事件
+	this->renderCallback(*this, this->events);
+	this->events.clear();
 }
 
 }

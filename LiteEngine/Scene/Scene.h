@@ -51,6 +51,69 @@ namespace LiteEngine::SceneManagement {
 		}
 
 		virtual ~Object() = default;
+
+		Object& addScale(const DirectX::XMFLOAT3& deltaLocalScale) {
+			transS.x += deltaLocalScale.x;
+			transS.y += deltaLocalScale.y;
+			transS.z += deltaLocalScale.z;
+			return *this;
+		}
+
+		Object& multiplyScale(const DirectX::XMFLOAT3& deltaLocalScale) {
+			transS.x *= deltaLocalScale.x;
+			transS.y *= deltaLocalScale.y;
+			transS.z *= deltaLocalScale.z;
+			return *this;
+		}
+
+		Object& moveParentCoord(const DirectX::XMFLOAT3& deltaParentPos) {
+			transT.x += deltaParentPos.x;
+			transT.y += deltaParentPos.y;
+			transT.z += deltaParentPos.z;
+			return *this;
+		}
+
+		DirectX::XMFLOAT3 getDirectionFloat3InParent(const DirectX::XMFLOAT3& vec) {
+			auto trans = this->getTransformMatrix();
+			auto deltaParentPos4 = DirectX::XMVector4Transform({ vec.x, vec.y, vec.z, 0 }, trans);
+			DirectX::XMFLOAT3 out;
+			DirectX::XMStoreFloat3(&out, deltaParentPos4);
+			return out;
+		}
+
+		Object& moveLocalCoord(const DirectX::XMFLOAT3& deltaLocalPos) {
+			// transT 是在父物体坐标系中的移动
+			// move 函数要在本地坐标系做移动
+			
+			DirectX::XMFLOAT3 deltaParentPos3 = getDirectionFloat3InParent(deltaLocalPos);
+			transT.x += deltaParentPos3.x;
+			transT.y += deltaParentPos3.y;
+			transT.z += deltaParentPos3.z;
+			return *this;
+		}
+
+		Object& rotateParentCoord(const DirectX::XMVECTOR& deltaRotate) {
+			if(DirectX::XMQuaternionIsIdentity(deltaRotate)) return *this;
+			this->transR = DirectX::XMQuaternionMultiply(this->transR, deltaRotate);
+			return *this;
+		}
+
+		Object& rotateLocalCoord(const DirectX::XMVECTOR& deltaRotate) {
+			if(DirectX::XMQuaternionIsIdentity(deltaRotate)) return *this;
+			DirectX::XMVECTOR axisLocal;
+			float angle;
+			DirectX::XMQuaternionToAxisAngle(&axisLocal, &angle, deltaRotate);
+			DirectX::XMFLOAT3 axisLocal3;
+			DirectX::XMStoreFloat3(&axisLocal3, axisLocal);
+
+			auto axisParent3 = getDirectionFloat3InParent(axisLocal3);
+			auto axisParent = DirectX::XMLoadFloat3(&axisParent3);
+			this->transR = DirectX::XMQuaternionMultiply(
+				this->transR, 
+				DirectX::XMQuaternionRotationAxis(axisParent, angle)
+			);
+			return *this;
+		}
 	};
 
 	// TODO: vertex-shader-material 实用性校验

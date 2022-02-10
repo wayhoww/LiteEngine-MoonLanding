@@ -101,7 +101,7 @@ float3 defaultMaterialBRDF(
 	// normalized surface normal
 	float3 N
 ) {
-	if (dot(L, N) < 0) {
+	if (dot(L, N) < 0 || dot(V, N) < 0) {
 		return float3(0, 0, 0);
 	} else {
 		float3 H = normalize(L + V);

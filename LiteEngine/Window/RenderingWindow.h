@@ -14,6 +14,8 @@ struct WindowSize {
 };
 
 class RenderingWindow {
+public:
+	using EventType = std::tuple<UINT, WPARAM, LPARAM>;
 private:
 	static constexpr LPCWSTR CLASSNAME = L"RenderingWindow";
 	static void registerWndClass();
@@ -23,12 +25,13 @@ protected:
 	HWND hwnd = nullptr;
 	bool windowShouldClose = false;
 	DWORD style = 0;
+	std::vector<EventType> events;
 
 	virtual void render();
 	virtual LRESULT event(UINT msg, WPARAM wparam, LPARAM lparam);
 
 public:
-	std::function<void(const RenderingWindow&)> renderCallback;
+	std::function<void(const RenderingWindow&, const std::vector<EventType>&)> renderCallback;
 
 	RenderingWindow(
 		LPCWSTR window_name = L"",
@@ -37,7 +40,7 @@ public:
 		int y = CW_USEDEFAULT,
 		int width = CW_USEDEFAULT,
 		int height = CW_USEDEFAULT,
-		std::function<void(const RenderingWindow&)> renderCallback = [](const RenderingWindow&) {}
+		std::function<void(const RenderingWindow&, const std::vector<EventType>&)> renderCallback = [](const RenderingWindow&, const std::vector<EventType>&) {}
 	);
 
 	virtual ~RenderingWindow() {}
