@@ -26,7 +26,8 @@ Default_VS_OUTPUT main(Default_VS_INPUT vdata) {
 	outval.color = vdata.color;
 
 	// 需要做方向插值嘛
-	outval.normal_W = mul(trans_L2W, float4(vdata.normal_L, 0)).xyz;
+	//outval.normal_W = mul(transpose(trans_W2L), float4(vdata.normal_L, 0)).xyz;
+	outval.normal_W = mul(float4(vdata.normal_L, 0), trans_W2L).xyz;
 	outval.tangent_W = mul(trans_L2W, float4(vdata.tangent_L, 0)).xyz;
 
 	return outval;

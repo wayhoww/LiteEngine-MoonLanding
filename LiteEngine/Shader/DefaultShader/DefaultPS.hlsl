@@ -116,10 +116,12 @@ float3 defaultMaterialBRDF(
 	}
 }
 
-float3 getNormal(float3 normal, float3 tangent, float3 normalMapValue) {
-	float3 bitangent = cross(normal, tangent);
+float3 getNormal(float3 normal, float3 tangent, float3 normalMapValue, float scale) {
+	tangent = normalize(tangent - dot(tangent, normal) * normal / length(normal));
+	float3 bitangent = normalize(cross(normal, tangent));
 	float3x3 TBN = float3x3(tangent, bitangent, normal);
-	return normalize(mul(TBN, normalMapValue));
+	float3 scaledNormal = normalize(normalMapValue * 2.0 - 1.0) * float3(scale, scale, 1.0);
+	return normalize(mul(TBN, scaledNormal));
 }
 
 
@@ -137,8 +139,12 @@ float4 main(Default_VS_OUTPUT pdata) : SV_TARGET{
 	float roughness = uvRoughness < N_TEXCOORDS ? texRoughness.Sample(sampRoughness, texCoords[uvRoughness]).x : c_roughness;
 	// todo normal scale
 	float3 normal_W = uvNormal < N_TEXCOORDS ? 
-		getNormal(pdata.normal_W, pdata.tangent_W, texNormal.Sample(sampNormal, texCoords[uvNormal]).xyz) : 
-		normalize(pdata.normal_W);
+		getNormal(
+			normalize(pdata.normal_W), 
+			normalize(pdata.tangent_W), 
+			texNormal.Sample(sampNormal, texCoords[uvNormal]).xyz,
+			c_normalScale
+		) : normalize(pdata.normal_W);
 
 	// ambient
 	float3 output = float3(0, 0, 0); // baseColor.xyz* float3(0.1, 0.1, 0.1);

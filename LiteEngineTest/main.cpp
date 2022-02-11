@@ -112,8 +112,8 @@ int WINAPI wWinMain(
 				}
 			}
 		}
-		float moveUnit = float(1 / (renderer.getCurrentFPS() / 3.f));
-		float rotateUnit = float(3.14159 / renderer.getCurrentFPS() / 10);
+		float moveUnit = float(1 / 60 / 3.f);
+		float rotateUnit = float(3.14159 / 60 / 10);
 
 		smScene.activeCamera->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
 		smScene.activeCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0, 0}, rotateUnit * countRotateRight));
