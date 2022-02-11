@@ -112,7 +112,7 @@ int WINAPI wWinMain(
 				}
 			}
 		}
-		float moveUnit = float(1 / 60 / 3.f);
+		float moveUnit = float(1. / 60 / 3.f);
 		float rotateUnit = float(3.14159 / 60 / 10);
 
 		smScene.activeCamera->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
