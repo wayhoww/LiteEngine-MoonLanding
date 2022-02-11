@@ -116,6 +116,12 @@ float3 defaultMaterialBRDF(
 	}
 }
 
+float3 getNormal(float3 normal, float3 tangent, float3 normalMapValue) {
+	float3 bitangent = cross(normal, tangent);
+	float3x3 TBN = float3x3(tangent, bitangent, normal);
+	return normalize(mul(TBN, normalMapValue));
+}
+
 
 float4 main(Default_VS_OUTPUT pdata) : SV_TARGET{
 
@@ -129,8 +135,10 @@ float4 main(Default_VS_OUTPUT pdata) : SV_TARGET{
 
 	float metallic = uvMetallic < N_TEXCOORDS ? texMetallic.Sample(sampMetallic, texCoords[uvMetallic]).x : c_metallic;
 	float roughness = uvRoughness < N_TEXCOORDS ? texRoughness.Sample(sampRoughness, texCoords[uvRoughness]).x : c_roughness;
-	
-	
+	// todo normal scale
+	float3 normal_W = uvNormal < N_TEXCOORDS ? 
+		getNormal(pdata.normal_W, pdata.tangent_W, texNormal.Sample(sampNormal, texCoords[uvNormal]).xyz) : 
+		normalize(pdata.normal_W);
 
 	// ambient
 	float3 output = float3(0, 0, 0); // baseColor.xyz* float3(0.1, 0.1, 0.1);
@@ -145,13 +153,11 @@ float4 main(Default_VS_OUTPUT pdata) : SV_TARGET{
 		float distance = sqrt(distance2);
 		float3 lightDir_W = positionVecDist / distance;	// i.e. L
 
-		// todo normal scale
-		float3 normal_W_normalized = normalize(pdata.normal_W);	// i.e. N
-
+		
 		// todo ior
-		float3 brdf = defaultMaterialBRDF(baseColor.xyz, metallic, roughness, 1.45, cameraDir_W, lightDir_W, normal_W_normalized);
+		float3 brdf = defaultMaterialBRDF(baseColor.xyz, metallic, roughness, 1.45, cameraDir_W, lightDir_W, normal_W);
 
-		float cosLightNormal = dot(normal_W_normalized, lightDir_W);
+		float cosLightNormal = dot(normal_W, lightDir_W);
 
 		output += brdf * lights[i].intensity * cosLightNormal / distance2;
 
