@@ -413,35 +413,49 @@ namespace LiteEngine::IO {
     //    reg[sPath] = (uint32_t)reg.size();
     //    return (uint32_t)reg.size() - 1;
     //}
-    std::shared_ptr<Rendering::ShaderResourceView> loadTexture(
-        int textureInfoIndex,
-        const tinygltf::Model& model
-    ) {
-        auto& renderer = Rendering::Renderer::getInstance();
 
-        if (textureInfoIndex >= 0) {
-            auto textureObj = model.textures[textureInfoIndex];
-            auto textureSource = model.images[textureObj.source];
+    class CachedTextureLoader {
+        std::map<int, std::shared_ptr<Rendering::ShaderResourceView>> cache;
 
-            if (textureSource.bufferView < 0) {
-                // todo.. it is pretty simple..
-                log(LogLevel::WARNING, "external texture source is not supported yet, skipped");
-            } else {
-                auto buffer_view = model.bufferViews[textureSource.bufferView];
-                auto buffer = model.buffers[buffer_view.buffer];
-                auto image_data = &buffer.data[buffer_view.byteOffset];
-                return renderer.createSimpleTexture2DFromWIC(image_data, buffer_view.byteLength);
-            }
+    public:
+        void clearCache() {
+            this->cache.clear();
         }
 
-        return nullptr;
-    }
+
+        std::shared_ptr<Rendering::ShaderResourceView> loadTexture(
+            int textureInfoIndex,
+            const tinygltf::Model& model
+        ) {
+            if (cache.count(textureInfoIndex)) return cache[textureInfoIndex];
+
+            auto& renderer = Rendering::Renderer::getInstance();
+
+            if (textureInfoIndex >= 0) {
+                auto textureObj = model.textures[textureInfoIndex];
+                auto textureSource = model.images[textureObj.source];
+
+                if (textureSource.bufferView < 0) {
+                    // todo.. it is pretty simple..
+                    log(LogLevel::WARNING, "external texture source is not supported yet, skipped");
+                } else {
+                    auto buffer_view = model.bufferViews[textureSource.bufferView];
+                    auto buffer = model.buffers[buffer_view.buffer];
+                    auto image_data = &buffer.data[buffer_view.byteOffset];
+                    return cache[textureInfoIndex] = renderer.createSimpleTexture2DFromWIC(image_data, buffer_view.byteLength);
+                }
+            }
+
+            return nullptr;
+        }
+    };
 
 
     std::shared_ptr<SceneManagement::DefaultMaterial> loadDefaultMaterial(
-        const tinygltf::Material& mat, 
-        const tinygltf::Model& model, 
-        std::map<std::string, uint32_t> textureReg
+        const tinygltf::Material& mat,
+        const tinygltf::Model& model,
+        std::map<std::string, uint32_t> textureReg,
+        CachedTextureLoader& loader
     ) {
         auto& renderer = Rendering::Renderer::getInstance();
         SceneManagement::DefaultMaterialConstantData constants;
@@ -468,23 +482,32 @@ namespace LiteEngine::IO {
         // out.shader is set by the constructor
 
 
-        out->texBaseColor = loadTexture(mat.pbrMetallicRoughness.baseColorTexture.index, model);
+        out->texBaseColor = loader.loadTexture(mat.pbrMetallicRoughness.baseColorTexture.index, model);
         if(out->texBaseColor) constants.uvBaseColor = mat.pbrMetallicRoughness.baseColorTexture.texCoord;
         
-        out->texEmissionColor = loadTexture(mat.emissiveTexture.index, model);
+        out->texEmissionColor = loader.loadTexture(mat.emissiveTexture.index, model);
         if(out->texEmissionColor) constants.uvEmissionColor = mat.emissiveTexture.texCoord;
         
-        out->texMetallic = nullptr; // 不支持纹理
-        constants.uvMetallic = UINT32_MAX;
         
-        out->texRoughness = loadTexture(mat.pbrMetallicRoughness.metallicRoughnessTexture.index, model);
-        if(out->texRoughness)constants.uvRoughness = mat.pbrMetallicRoughness.metallicRoughnessTexture.texCoord;
+        auto rmTexture = loader.loadTexture(mat.pbrMetallicRoughness.metallicRoughnessTexture.index, model); 
+        if (rmTexture) {
+            out->texMetallic = rmTexture;
+            constants.uvMetallic = mat.pbrMetallicRoughness.metallicRoughnessTexture.texCoord;
+            constants.channelMetallic = 2;
 
-        out->texAO = loadTexture(mat.occlusionTexture.index, model);
-        if(out->texAO)constants.uvAO = mat.occlusionTexture.texCoord;
-        constants.occlusionStrength = (float)mat.occlusionTexture.strength;
+            out->texRoughness = rmTexture;
+            constants.uvRoughness = mat.pbrMetallicRoughness.metallicRoughnessTexture.texCoord;
+            constants.channelRoughness = 1;
+        }
+        
+        out->texAO = loader.loadTexture(mat.occlusionTexture.index, model);
+        if (out->texAO) {
+            constants.uvAO = mat.occlusionTexture.texCoord;
+            constants.occlusionStrength = (float)mat.occlusionTexture.strength;
+            constants.channelAO = 0;
+        }
 
-        out->texNormal = loadTexture(mat.normalTexture.index, model);
+        out->texNormal = loader.loadTexture(mat.normalTexture.index, model);
         if(out->texNormal)constants.uvNormal = mat.normalTexture.texCoord;
         constants.normalMapScale = (float)mat.normalTexture.scale;
 
@@ -747,8 +770,10 @@ namespace LiteEngine::IO {
             >
         > meshes;
 
+        CachedTextureLoader textureLoader;
+
         for (auto& material: model.materials) {
-            materials.push_back(loadDefaultMaterial(material, model, textureReg));
+            materials.push_back(loadDefaultMaterial(material, model, textureReg, textureLoader));
         }
 
         auto ido = renderer.createIndexBufferObject(indices);

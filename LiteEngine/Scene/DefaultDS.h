@@ -50,7 +50,7 @@ namespace LiteEngine::SceneManagement {
 		float metallic = 0;
 		float roughness = 1;
 		float anisotropy = 0;
-		float occlusionStrength = 0;
+		float occlusionStrength = 1;
 
 		float normalMapScale = 1;
 		uint32_t uvBaseColor = UINT32_MAX;
@@ -60,8 +60,12 @@ namespace LiteEngine::SceneManagement {
 		uint32_t uvRoughness = UINT32_MAX;
 		uint32_t uvAO = UINT32_MAX;
 		uint32_t uvNormal= UINT32_MAX;
+		uint32_t channelRoughness= 0;
+
+		uint32_t channelMetallic = 0;
+		uint32_t channelAO = 0;
 	};
-	static_assert(sizeof(DefaultMaterialConstantData) == 5 * 4 * 4);
+	static_assert(sizeof(DefaultMaterialConstantData) == 6 * 4 * 4);
 
 	struct DefaultMaterial : public Material {
 		DefaultMaterial() {

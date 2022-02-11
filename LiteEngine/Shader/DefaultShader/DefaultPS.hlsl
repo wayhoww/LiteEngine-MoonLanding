@@ -14,11 +14,11 @@ const static float PI = 3.14159265f;
 
 cbuffer DefaultPSConstant : register(REGISTER_PS_MATERIAL) {
 	float4 c_baseColor;
-	float4 c_emissionColor;
+	float4 c_emissionColor;		// do not support now...
 
 	float c_metallic;
 	float c_roughness;
-	float c_anisotropy;
+	float c_anisotropy;			// do not support now..
 	float c_occlusionStrength;
 
 	float c_normalScale;
@@ -29,6 +29,10 @@ cbuffer DefaultPSConstant : register(REGISTER_PS_MATERIAL) {
 	uint uvRoughness;
 	uint uvAO;
 	uint uvNormal;
+	uint channelRoughness;
+
+	uint channelMetallic;
+	uint channelAO;
 };
 
 
@@ -45,7 +49,7 @@ Texture2D texRoughness: register(t3);
 sampler sampRoughness: register(s3);
 
 Texture2D texAO: register(t4);
-sampler sampAO: register(s5);
+sampler sampAO: register(s4);
 
 Texture2D texNormal: register(t5);
 sampler sampNormal: register(s5);
@@ -101,6 +105,7 @@ float3 defaultMaterialBRDF(
 	// normalized surface normal
 	float3 N
 ) {
+	// 基本按照 glTF 2.0 Specification 中对材质的规定写的
 	// 因为有 normal map 的关系，这里不能加 dot(V, H) < N
 	if (dot(L, N) < 0) {
 		return float3(0, 0, 0);
@@ -128,46 +133,74 @@ float3 getNormal(float3 normal, float3 tangent, float3 normalMapValue, float sca
 
 float4 main(Default_VS_OUTPUT pdata) : SV_TARGET{
 
-	float2 texCoords[2] = { pdata.texCoord0, pdata.texCoord1 };
-	float4 ZERO4 = { 0, 0, 0, 0 };
-
-	float4 baseColor = pdata.color * 
-		( uvBaseColor < N_TEXCOORDS ? 
-		  pow(max(ZERO4, texBaseColor.Sample(sampBaseColor, texCoords[uvBaseColor])), 2.2)
-	    : c_baseColor );
-
-	float metallic = uvMetallic < N_TEXCOORDS ? texMetallic.Sample(sampMetallic, texCoords[uvMetallic]).x : c_metallic;
-	float roughness = uvRoughness < N_TEXCOORDS ? texRoughness.Sample(sampRoughness, texCoords[uvRoughness]).x : c_roughness;
-	// todo normal scale
-	float3 normal_W = uvNormal < N_TEXCOORDS ? 
-		getNormal(
-			normalize(pdata.normal_W), 
-			normalize(pdata.tangent_W), 
-			texNormal.Sample(sampNormal, texCoords[uvNormal]).xyz,
-			c_normalScale
-		) : normalize(pdata.normal_W);
-
-	// ambient
-	float3 output = float3(0, 0, 0); // baseColor.xyz* float3(0.1, 0.1, 0.1);
-
 	float3 cameraPos_W = trans_V2W._m03_m13_m23 / trans_V2W._m33;
 	float3 cameraDir_W = normalize(cameraPos_W - pdata.position_W);	// i.e. V
+	float3 output = float3(0, 0, 0); // baseColor.xyz* float3(0.1, 0.1, 0.1);
 
-	for (uint i = 0; i < numberOfLights; i++) {
+	// 只渲染一个面
+	if (dot(pdata.normal_W, cameraDir_W) >= 0) {
+		float2 texCoords[2] = { pdata.texCoord0, pdata.texCoord1 };
 
-		float3 positionVecDist = lights[i].position_W - pdata.position_W;
-		float distance2 = dot(positionVecDist, positionVecDist);
-		float distance = sqrt(distance2);
-		float3 lightDir_W = positionVecDist / distance;	// i.e. L
+
+		float4 sampledBaseColor = uvBaseColor < N_TEXCOORDS ?
+			texBaseColor.Sample(sampBaseColor, texCoords[uvBaseColor])
+			: float4(1, 1, 1, 1);
+
+		sampledBaseColor.xyz = pow(max(float3(0, 0, 0), sampledBaseColor.xyz), 2.2);
+
+		float4 baseColor = c_baseColor * pdata.color * sampledBaseColor;
+
+
+		float3 emissionColor = c_emissionColor * pdata.color *
+			(uvEmissionColor < N_TEXCOORDS ?
+				pow(max(float3(0, 0, 0), texEmissionColor.Sample(sampEmissionColor, texCoords[uvEmissionColor])).xyz, 2.2)
+				: float3(1, 1, 1));
+
+
+		float metallic =
+			(uvMetallic < N_TEXCOORDS ?
+				texMetallic.Sample(sampMetallic, texCoords[uvMetallic])[channelMetallic] : 1)
+			* c_metallic;
+
+		float roughness =
+			(uvRoughness < N_TEXCOORDS ?
+				texRoughness.Sample(sampRoughness, texCoords[uvRoughness])[channelRoughness] : 1)
+			* c_roughness;
+
+		float ao =
+			(uvAO < N_TEXCOORDS ?
+				texAO.Sample(sampAO, texCoords[uvAO])[channelAO] : 1);
+		ao = max(0, 1 + c_occlusionStrength * (ao - 1));
+
+		float3 normal_W = uvNormal < N_TEXCOORDS ?
+			getNormal(
+				normalize(pdata.normal_W),
+				normalize(pdata.tangent_W),
+				texNormal.Sample(sampNormal, texCoords[uvNormal]).xyz,
+				c_normalScale
+			) : normalize(pdata.normal_W);
+
 
 		
-		// todo ior
-		float3 brdf = defaultMaterialBRDF(baseColor.xyz, metallic, roughness, 1.45, cameraDir_W, lightDir_W, normal_W);
+		for (uint i = 0; i < numberOfLights; i++) {
 
-		float cosLightNormal = dot(normal_W, lightDir_W);
+			float3 positionVecDist = lights[i].position_W - pdata.position_W;
+			float distance2 = dot(positionVecDist, positionVecDist);
+			float distance = sqrt(distance2);
+			float3 lightDir_W = positionVecDist / distance;	// i.e. L
 
-		output += brdf * lights[i].intensity * cosLightNormal / distance2;
+			float3 brdf = defaultMaterialBRDF(baseColor.xyz, metallic, roughness, 1.45, cameraDir_W, lightDir_W, normal_W);
 
+			float cosLightNormal = dot(normal_W, lightDir_W);
+
+			output += brdf * lights[i].intensity * cosLightNormal / distance2;
+		}
+
+		// ambient 
+		output += 0.1 * baseColor.xyz * ao;
+
+		// emission
+		output += emissionColor;
 	}
 
 	return float4(pow(max(float3(0, 0, 0), output), 1 / 2.2), 1.0);
