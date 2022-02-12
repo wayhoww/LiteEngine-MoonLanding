@@ -56,12 +56,21 @@ int WINAPI wWinMain(
 	ler::Renderer::setHandle(window.getHwnd());
 	auto& renderer = ler::Renderer::getInstance();
 
-	auto res = le::IO::loadDefaultResourceGLTF("cube.gltf");
+	auto res = le::IO::loadDefaultResourceGLTF("testcase.gltf");
 
 	lesm::Scene smScene;
 	smScene.rootObject = res;
 	smScene.activeCamera = smScene.search<lesm::Camera>("Camera");
-	smScene.skybox = renderer.createCubeMapFromDDS(L"skybox.dds");
+	auto skybox = renderer.createCubeMapFromDDS(L"skybox.dds");
+	
+	// Z-up 右手系 -> Y-up 左手系
+	// C++ 中出现的所有矩阵都应该是用于右乘（vec * mat）的矩阵
+	DirectX::XMMATRIX skyboxTransform = {
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+		-1, 0, 0, 0,
+		0, 0, 0, 1
+	};
 
 	window.resizeClientArea((int)(1080 * smScene.activeCamera->data.aspectRatio), 1080);
 	renderer.resizeFitWindow();
@@ -124,7 +133,11 @@ int WINAPI wWinMain(
 
 		// 其实 getRenderingScene 可以在另外一个线程访问，完全不涉及图形 API
 		std::shared_ptr<ler::RenderingScene> scene = smScene.getRenderingScene();
-		renderer.renderFrame(*scene);
+		// renderer.renderFrame(*scene);
+		renderer.beginRendering();
+		renderer.renderScene(scene);
+		renderer.renderSkybox(skybox, scene->camera, skyboxTransform);
+		renderer.swap();
 
 		auto fps = renderer.getAverageFPS();
 		wchar_t buffer[100];

@@ -108,7 +108,7 @@
       <FileType>Document</FileType>
     </None>
     <None Include="packages.config" />
-    <CopyFileToFolders Include="Resource\cube.gltf">
+    <CopyFileToFolders Include="Resource\testcase.gltf">
       <FileType>Document</FileType>
     </CopyFileToFolders>
   </ItemGroup>

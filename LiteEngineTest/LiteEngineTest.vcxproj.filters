@@ -23,9 +23,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="Resource\cube.gltf">
+    <CopyFileToFolders Include="Resource\skybox.dds" />
+    <CopyFileToFolders Include="Resource\testcase.gltf">
       <Filter>Resource Files</Filter>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="Resource\skybox.dds" />
   </ItemGroup>
 </Project>

@@ -77,21 +77,21 @@ namespace LiteEngine::SceneManagement {
 			this->shader = shader;
 		}
 
-		std::shared_ptr<Rendering::SamplerState> sampBaseColor;
-		std::shared_ptr<Rendering::SamplerState> sampEmissionColor;
-		std::shared_ptr<Rendering::SamplerState> sampMetallic;
-		std::shared_ptr<Rendering::SamplerState> sampRoughness;
-		std::shared_ptr<Rendering::SamplerState> sampAO;
-		std::shared_ptr<Rendering::SamplerState> sampNormal;
+		Rendering::PtrSamplerState sampBaseColor;
+		Rendering::PtrSamplerState sampEmissionColor;
+		Rendering::PtrSamplerState sampMetallic;
+		Rendering::PtrSamplerState sampRoughness;
+		Rendering::PtrSamplerState sampAO;
+		Rendering::PtrSamplerState sampNormal;
 
-		std::shared_ptr<Rendering::ShaderResourceView> texBaseColor;
-		std::shared_ptr<Rendering::ShaderResourceView> texEmissionColor;
-		std::shared_ptr<Rendering::ShaderResourceView> texMetallic;
-		std::shared_ptr<Rendering::ShaderResourceView> texRoughness;
-		std::shared_ptr<Rendering::ShaderResourceView> texAO;
-		std::shared_ptr<Rendering::ShaderResourceView> texNormal;
+		Rendering::PtrShaderResourceView texBaseColor;
+		Rendering::PtrShaderResourceView texEmissionColor;
+		Rendering::PtrShaderResourceView texMetallic;
+		Rendering::PtrShaderResourceView texRoughness;
+		Rendering::PtrShaderResourceView texAO;
+		Rendering::PtrShaderResourceView texNormal;
 
-		virtual std::vector<std::pair<std::shared_ptr<Rendering::ShaderResourceView>, uint32_t>> getShaderResourceViews() const {
+		virtual std::vector<std::pair<Rendering::PtrShaderResourceView, uint32_t>> getShaderResourceViews() const {
 			return {
 				{ texBaseColor, (uint32_t)DefaultShaderSlot::BASE_COLOR },
 				{ texEmissionColor, (uint32_t)DefaultShaderSlot::EMISSION_COLOR },
@@ -102,7 +102,7 @@ namespace LiteEngine::SceneManagement {
 			};
 		}
 
-		virtual std::vector<std::pair<std::shared_ptr<Rendering::SamplerState>, uint32_t>> getSamplerStates() const {
+		virtual std::vector<std::pair<Rendering::PtrSamplerState, uint32_t>> getSamplerStates() const {
 			return {
 				{ sampBaseColor, (uint32_t)DefaultShaderSlot::BASE_COLOR },
 				{ sampEmissionColor, (uint32_t)DefaultShaderSlot::EMISSION_COLOR },
@@ -113,9 +113,9 @@ namespace LiteEngine::SceneManagement {
 			};
 		}
 
-		virtual std::shared_ptr<Rendering::InputLayout> getInputLayout() const {
+		virtual Rendering::PtrInputLayout getInputLayout() const {
 			auto& renderer = Rendering::Renderer::getInstance();
-			static std::shared_ptr<Rendering::InputLayout> sLayout(
+			static Rendering::PtrInputLayout sLayout(
 				renderer.createInputLayout(DefaultVertexData::getDescription(), this->shader));
 			return sLayout;
 		}

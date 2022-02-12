@@ -28,12 +28,12 @@ namespace LiteEngine::Rendering {
 
 	std::shared_ptr<MeshObject> createSkyboxMeshObject(Rendering::Renderer& renderer) {
 
-		static float cubeVertices[8 * 3] = {
+		float cubeVertices[8 * 3] = {
 			+1, +1, -1, +1, -1, -1, +1, +1, +1, +1, -1, +1,
 			-1, +1, -1, -1, -1, -1, -1, +1, +1, -1, -1, +1,
 		};
 
-		static std::shared_ptr<InputElementDescriptions> desc(
+		std::shared_ptr<InputElementDescriptions> desc(
 			new InputElementDescriptions(InputElementDescriptions({
 				{ "POSITION",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0}}))
 			);
@@ -56,21 +56,56 @@ namespace LiteEngine::Rendering {
 		return renderer.createMeshObject(mesh, material, inputLayout, nullptr);
 	}
 
-	void Renderer::renderSkybox(const RenderingScene& scene) {
-		auto skybox = scene.skybox;
-		if (skybox == nullptr) return;
+	std::shared_ptr<RenderingPass> Renderer::createDefaultRenderingPass(
+		std::shared_ptr<RenderingScene>& scene
+	) {
+
+		static auto pass = this->createRenderingPassWithoutSceneAndTarget(
+			[]() {
+				CD3D11_RASTERIZER_DESC desc{CD3D11_DEFAULT()};
+				desc.CullMode = D3D11_CULL_NONE;
+				return desc;
+			}(),
+			CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT())
+		);
+		pass->scene = scene;
+		pass->renderTargetView = this->renderTargetView;
+		pass->depthStencilView = this->depthStencilView;
+		return pass;
+	}
+
+	std::shared_ptr<RenderingPass> Renderer::createSkyboxRenderingPass(
+		PtrShaderResourceView skyboxTexture,
+		const RenderingScene::CameraInfo& camera,
+		DirectX::XMMATRIX skyboxTransform
+	) {
+		static auto pass = this->createRenderingPassWithoutSceneAndTarget(
+			CD3D11_RASTERIZER_DESC(CD3D11_DEFAULT()),
+			[]() {
+				auto desc = CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT()); 
+				desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+				return desc;
+			}()
+		);
 
 		static auto skyboxMeshObject = createSkyboxMeshObject(*this);
 
-		skyboxMeshObject->material->shaderResourceViews = {{ skybox, 0 }};
+		skyboxMeshObject->material->shaderResourceViews = {{ skyboxTexture, 0 }};
 		auto& trans_CubeMap = skyboxMeshObject->material->constants->cpuData<DirectX::XMMATRIX>();
-		auto det = DirectX::XMMatrixDeterminant(scene.skyboxTransform);
-		trans_CubeMap = DirectX::XMMatrixInverse(&det, scene.skyboxTransform);
-		context->OMSetDepthStencilState(this->skyBoxDepthStencilState.Get(), 1);
-		skyboxMeshObject->draw(this->context.Get());
+		auto det = DirectX::XMMatrixDeterminant(skyboxTransform);
+		trans_CubeMap = DirectX::XMMatrixInverse(&det, skyboxTransform);
+		
+		RenderingScene* scene = new RenderingScene();
+		scene->camera = camera;
+		scene->meshObjects = { skyboxMeshObject };
+
+		pass->scene = std::shared_ptr<RenderingScene>(scene);
+		pass->renderTargetView = this->renderTargetView;
+		pass->depthStencilView = this->depthStencilView;
+		return pass;
 	}
 
-	std::shared_ptr<ShaderResourceView> Renderer::createCubeMapFromDDS(const std::wstring& file) {
+	PtrShaderResourceView Renderer::createCubeMapFromDDS(const std::wstring& file) {
 		DirectX::DDS_FLAGS flags = DirectX::DDS_FLAGS_FORCE_RGB;
 		DirectX::TexMetadata meta;			// out_opt
 		DirectX::ScratchImage image;		// out
@@ -79,12 +114,12 @@ namespace LiteEngine::Rendering {
 		if (count != 6) {
 			throw std::exception("shader map dds should contains exact 6 images.");
 		}
-		ID3D11ShaderResourceView* view = nullptr;
+		PtrShaderResourceView view = nullptr;
 		DirectX::CreateShaderResourceView(device.Get(), image.GetImages(), 6, meta, &view);
-		return std::shared_ptr<ShaderResourceView>(new ShaderResourceView(view));
+		return view;
 	}
 
-	std::shared_ptr<ShaderResourceView> doCreateSimpleTexture2DFromWIC(
+	PtrShaderResourceView doCreateSimpleTexture2DFromWIC(
 		DirectX::TexMetadata& meta,			// out_opt
 		DirectX::ScratchImage& image,		// out
 		Renderer& renderer,
@@ -94,12 +129,12 @@ namespace LiteEngine::Rendering {
 			throw std::exception("no image is loaded");
 		}
 		CD3D11_SHADER_RESOURCE_VIEW_DESC descView(D3D11_SRV_DIMENSION_TEXTURE2D, meta.format);
-		ID3D11ShaderResourceView* view;
+		PtrShaderResourceView view;
 		DirectX::CreateShaderResourceView(device, image.GetImages(), 1, meta, &view);
-		return std::shared_ptr<ShaderResourceView>(new ShaderResourceView(view));
+		return view;
 	}
 
-	std::shared_ptr<ShaderResourceView> Renderer::createSimpleTexture2DFromWIC(const std::wstring& file) {
+	PtrShaderResourceView Renderer::createSimpleTexture2DFromWIC(const std::wstring& file) {
 		DirectX::WIC_FLAGS flags = DirectX::WIC_FLAGS_FORCE_RGB;
 		DirectX::TexMetadata meta;			// out_opt
 		DirectX::ScratchImage image;		// out
@@ -109,7 +144,7 @@ namespace LiteEngine::Rendering {
 	}
 
 
-	std::shared_ptr<ShaderResourceView> Renderer::createSimpleTexture2DFromWIC(const uint8_t* memory, size_t size) {
+	PtrShaderResourceView  Renderer::createSimpleTexture2DFromWIC(const uint8_t* memory, size_t size) {
 		DirectX::WIC_FLAGS flags = DirectX::WIC_FLAGS_FORCE_RGB;
 		DirectX::TexMetadata meta;			// out_opt
 		DirectX::ScratchImage image;		// out

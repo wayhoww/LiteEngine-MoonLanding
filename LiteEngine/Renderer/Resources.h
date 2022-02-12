@@ -44,23 +44,8 @@ namespace LiteEngine::Rendering {
 	};
 
 	// 这个结构体用指针的原因是他大小好像还蛮大的。。
-	class InputElementDescriptions {
-		uint64_t id;
-		std::vector<D3D11_INPUT_ELEMENT_DESC> data;
-	public:
-		InputElementDescriptions(std::vector<D3D11_INPUT_ELEMENT_DESC> data) : data(data) {
-			static std::atomic_uint64_t idCounter = 0;
-			this->id = idCounter++;
-		}
-
-		const D3D11_INPUT_ELEMENT_DESC* getData() const {
-			return data.data();
-		}
-
-		uint32_t getLength() const {
-			return (uint32_t)data.size();
-		}
-	};
+	using InputElementDescriptions =
+		std::vector<D3D11_INPUT_ELEMENT_DESC>;
 
 	struct VertexBufferObject {
 		Microsoft::WRL::ComPtr<ID3D11Buffer> vertices;
@@ -74,23 +59,17 @@ namespace LiteEngine::Rendering {
 		}
 	};
 
-	struct IndexBufferObject {
-		Microsoft::WRL::ComPtr<ID3D11Buffer> indices;
-
-		ID3D11Buffer* get() {
-			return indices.Get();
-		}
-	};
+	using PtrIndexBufferObject = Microsoft::WRL::ComPtr<ID3D11Buffer>;
 
 	struct Mesh {
 		std::shared_ptr<VertexBufferObject> vbo;
-		std::shared_ptr<IndexBufferObject> indices;
+		PtrIndexBufferObject indices;
 		uint32_t indicesBegin;
 		uint32_t indicesLength;
 
 		Mesh(
 			std::shared_ptr<VertexBufferObject> vbo, 
-			std::shared_ptr<IndexBufferObject> indices, 
+			PtrIndexBufferObject indices, 
 			uint32_t indicesBegin, 
 			uint32_t indicesLength
 		) {
@@ -181,45 +160,24 @@ namespace LiteEngine::Rendering {
 	};
 
 
-	class ShaderResourceView {
-		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> view;
+	using PtrShaderResourceView = Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>;
+	using PtrRenderTargetView = Microsoft::WRL::ComPtr<ID3D11RenderTargetView>;
 
+	using PtrSamplerState =
+		Microsoft::WRL::ComPtr<ID3D11SamplerState>;
+
+	class RenderableTexture {
 	public:
-		ShaderResourceView(ID3D11ShaderResourceView* view) {
-			this->view.Attach(view);
-		}
-
-		ID3D11ShaderResourceView* get() const {
-			return view.Get();
-		}
-
-		ID3D11ShaderResourceView* const* getAddressOf() const {
-			return view.GetAddressOf();
-		}
+		PtrShaderResourceView textureView;
+		PtrRenderTargetView renderTargetView;
 	};
 
-	class SamplerState {
-		Microsoft::WRL::ComPtr<ID3D11SamplerState> state;
-
-	public:
-		SamplerState(ID3D11SamplerState* state) {
-			this->state.Attach(state);
-		}
-
-		ID3D11SamplerState* get() const {
-			return state.Get();
-		}
-
-		ID3D11SamplerState* const* getAddressOf() const {
-			return state.GetAddressOf();
-		}
-	};
 
 	// 可自定义程度稍微有点低。。
 	struct Material {
 		std::shared_ptr<ConstantBuffer> constants;
-		std::vector<std::pair<std::shared_ptr<ShaderResourceView>, uint32_t>> shaderResourceViews;
-		std::vector<std::pair<std::shared_ptr<SamplerState>, uint32_t>> samplerStates;
+		std::vector<std::pair<PtrShaderResourceView, uint32_t>> shaderResourceViews;
+		std::vector<std::pair<PtrSamplerState, uint32_t>> samplerStates;
 		std::shared_ptr<Shader> shader;
 
 		virtual void updateAndBindResources(ID3D11DeviceContext* context) {
@@ -233,7 +191,7 @@ namespace LiteEngine::Rendering {
 					ID3D11ShaderResourceView* view = nullptr;
 					context->PSSetShaderResources(slot, 1, &view);
 				} else {
-					context->PSSetShaderResources(slot, 1, view->getAddressOf());
+					context->PSSetShaderResources(slot, 1, view.GetAddressOf());
 				}
 			}
 
@@ -242,25 +200,13 @@ namespace LiteEngine::Rendering {
 					ID3D11SamplerState* sampler = nullptr;
 					context->PSSetSamplers(slot, 1, &sampler);
 				} else {
-					context->PSSetSamplers(slot, 1, sampler->getAddressOf());
+					context->PSSetSamplers(slot, 1, sampler.GetAddressOf());
 				}
 			}
 		}
 	};
 
-	class InputLayout {
-		Microsoft::WRL::ComPtr<ID3D11InputLayout> data;
-
-	public:
-
-		InputLayout(ID3D11InputLayout* data) {
-			this->data.Attach(data);
-		}
-
-		ID3D11InputLayout* getData() const {
-			return this->data.Get();
-		}
-	};
+	using PtrInputLayout = Microsoft::WRL::ComPtr<ID3D11InputLayout>;
 
 	// L: local
 	// W: world
@@ -282,7 +228,7 @@ namespace LiteEngine::Rendering {
 		std::shared_ptr<Mesh> mesh;
 		// 如果 Mesh 的布局 和 Shader 不匹配，那么创建 InputLayout 的时候应该就会报错吧？
 
-		std::shared_ptr<InputLayout> inputLayout;
+		PtrInputLayout inputLayout;
 
 		// fixedConstant: VS PS 共享
 		std::shared_ptr<ConstantBuffer> fixedConstantBuffer;
@@ -309,7 +255,7 @@ namespace LiteEngine::Rendering {
 		MeshObject(
 			std::shared_ptr<Mesh> mesh,
 			std::shared_ptr<Material> material,
-			std::shared_ptr<InputLayout> inputLayout,
+			PtrInputLayout inputLayout,
 			std::shared_ptr<ConstantBuffer> fixedConstantBuffer,
 			std::shared_ptr<ConstantBuffer> customVSConstantBuffer = nullptr,
 			std::shared_ptr<ConstantBuffer> customPSConstantBuffer = nullptr
@@ -324,8 +270,8 @@ namespace LiteEngine::Rendering {
 			// IA input assembly
 			UINT strideVertex = this->mesh->vbo->vertexStride, offsetVertex = 0;
 			context->IASetVertexBuffers(0, 1, this->mesh->vbo->vertices.GetAddressOf(), &strideVertex, &offsetVertex);
-			context->IASetIndexBuffer(this->mesh->indices->get(), DXGI_FORMAT_R32_UINT, 0);
-			context->IASetInputLayout(this->inputLayout->getData());
+			context->IASetIndexBuffer(this->mesh->indices.Get(), DXGI_FORMAT_R32_UINT, 0);
+			context->IASetInputLayout(this->inputLayout.Get());
 			context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			// VS vertex shader

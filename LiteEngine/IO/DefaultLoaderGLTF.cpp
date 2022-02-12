@@ -415,7 +415,7 @@ namespace LiteEngine::IO {
     //}
 
     class CachedTextureLoader {
-        std::map<int, std::shared_ptr<Rendering::ShaderResourceView>> cache;
+        std::map<int, Rendering::PtrShaderResourceView> cache;
 
     public:
         void clearCache() {
@@ -423,7 +423,7 @@ namespace LiteEngine::IO {
         }
 
 
-        std::shared_ptr<Rendering::ShaderResourceView> loadTexture(
+        Rendering::PtrShaderResourceView loadTexture(
             int textureInfoIndex,
             const tinygltf::Model& model
         ) {

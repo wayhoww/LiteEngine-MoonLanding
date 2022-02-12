@@ -78,8 +78,6 @@ namespace LiteEngine::Rendering {
 		std::vector<LightDesc> lights;
 		std::vector<std::shared_ptr<MeshObject>> meshObjects;
 
-		std::shared_ptr<ShaderResourceView> skybox;
-		DirectX::XMMATRIX skyboxTransform = DirectX::XMMatrixIdentity();
 		// also probe and many other..
 
 	};
@@ -116,15 +114,46 @@ namespace LiteEngine::Rendering {
 
 	// TODO COM 内存泄漏检测
 
+	struct RenderingPass {
+		std::shared_ptr<RenderingScene> scene;
+		Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
+		Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
+		Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizerState;
+		Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
+	};
+
 	class Renderer {
+
+	protected:
+		std::shared_ptr<RenderingPass> createRenderingPassWithoutSceneAndTarget(
+			D3D11_RASTERIZER_DESC rasterizerDesc,
+			D3D11_DEPTH_STENCIL_DESC depthStencilDesc
+		) {
+			std::shared_ptr<RenderingPass> pass(new RenderingPass());
+			this->device->CreateRasterizerState(&rasterizerDesc, &pass->rasterizerState);
+			this->device->CreateDepthStencilState(&depthStencilDesc, &pass->depthStencilState);
+			return pass;
+		}
+	public:
+
+		std::shared_ptr<RenderingPass> createDefaultRenderingPass(
+			std::shared_ptr<RenderingScene>& scene
+		);
+
+		std::shared_ptr<RenderingPass> createSkyboxRenderingPass(
+			PtrShaderResourceView skyboxTexture,
+			const RenderingScene::CameraInfo& camera,
+			DirectX::XMMATRIX skyboxTransform
+		);
+
+	protected:
+
+
 		Microsoft::WRL::ComPtr<ID3D11Device> device;
 		Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
 		Microsoft::WRL::ComPtr<IDXGISwapChain> swapChain;
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
-		Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizerState;
-		Microsoft::WRL::ComPtr<ID3D11DepthStencilState> normalDepthStencilState;
-		Microsoft::WRL::ComPtr<ID3D11DepthStencilState> skyBoxDepthStencilState;
 
 		std::shared_ptr<ConstantBuffer> fixedPerframeVSConstantBuffer;
 		std::shared_ptr<ConstantBuffer> fixedPerframePSConstantBuffer;
@@ -220,6 +249,8 @@ namespace LiteEngine::Rendering {
 		bool autoAdjustSize = false;
 		bool autoAdjustAspectRatio = false;
 		float exposure = 1.0;
+
+
 	protected:
 		Renderer(HWND windowHwnd) {
 			// TODO MSAA. 这不是一个特别容易的事情。。
@@ -270,25 +301,12 @@ namespace LiteEngine::Rendering {
 				&this->context
 			);
 
-			D3D11_SUBRESOURCE_DATA subresData = {};
-			subresData.pSysMem = nullptr;
 			ID3D11Texture2D* frameBuffer;
 			this->swapChain->GetBuffer(0, IID_PPV_ARGS(&frameBuffer));
 			this->device->CreateRenderTargetView(frameBuffer, nullptr, &this->renderTargetView);
 			frameBuffer->Release();
 			
 			this->recreateDepthStencilView();
-
-			D3D11_RASTERIZER_DESC rasterizerStateDesc = CD3D11_RASTERIZER_DESC(CD3D11_DEFAULT());
-			rasterizerStateDesc.CullMode = D3D11_CULL_NONE; // todo...
-			this->device->CreateRasterizerState(&rasterizerStateDesc, &this->rasterizerState);
-
-			CD3D11_DEPTH_STENCIL_DESC normalDepthStencilDesc = CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT());
-			this->device->CreateDepthStencilState(&normalDepthStencilDesc, &this->normalDepthStencilState);
-
-			CD3D11_DEPTH_STENCIL_DESC skyboxDepthStencilDesc = CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT());
-			skyboxDepthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
-			this->device->CreateDepthStencilState(&skyboxDepthStencilDesc, &this->skyBoxDepthStencilState);
 
 			this->fixedPerframeVSConstantBuffer = this->createConstantBuffer(FixedPerframeVSConstantBufferData());
 			this->fixedPerframePSConstantBuffer = this->createConstantBuffer(FixedPerframePSConstantBufferData());
@@ -361,23 +379,19 @@ namespace LiteEngine::Rendering {
 		}
 
 		// IndexBufferObject
-		std::shared_ptr<IndexBufferObject> createIndexBufferObject(
+		PtrIndexBufferObject createIndexBufferObject(
 			const uint32_t* indices,
 			uint32_t count
 		) {
-			ID3D11Buffer* indexBuffer;
+			PtrIndexBufferObject indexBuffer;
 			CD3D11_BUFFER_DESC indexBufferDesc(count * sizeof(*indices), D3D11_BIND_INDEX_BUFFER);
 			D3D11_SUBRESOURCE_DATA indexSubresData = {};
 			indexSubresData.pSysMem = indices;
 			device->CreateBuffer(&indexBufferDesc, &indexSubresData, &indexBuffer);
-
-			auto out = std::shared_ptr<IndexBufferObject>(new IndexBufferObject{ indexBuffer });
-			indexBuffer->Release();
-
-			return out;
+			return indexBuffer;
 		}
 
-		std::shared_ptr<IndexBufferObject> createIndexBufferObject(
+		PtrIndexBufferObject createIndexBufferObject(
 			const std::vector<uint32_t>& indices
 		) {
 			return this->createIndexBufferObject(indices.data(), (uint32_t)indices.size());
@@ -433,30 +447,61 @@ namespace LiteEngine::Rendering {
 
 		std::shared_ptr<Mesh> createMesh(
 			std::shared_ptr<VertexBufferObject> vbo,
-			std::shared_ptr<IndexBufferObject> ibo,
+			PtrIndexBufferObject ibo,
 			uint32_t start,
 			uint32_t count
 		) {
 			return std::shared_ptr<Mesh>(new Mesh(vbo, ibo, start, count));
 		}
 
-		std::shared_ptr<SamplerState> createSamplerState(D3D11_SAMPLER_DESC desc) {
-			ID3D11SamplerState* state;
+		PtrSamplerState createSamplerState(D3D11_SAMPLER_DESC desc) {
+			PtrSamplerState state;
 			device->CreateSamplerState(&desc, &state);
-			return std::shared_ptr<SamplerState>(new SamplerState(state));
+			return state;
 		}
 
-		std::shared_ptr<ShaderResourceView> createShaderResourceView(
+		PtrShaderResourceView createShaderResourceView(
 			ID3D11Resource* resource,
 			const D3D11_SHADER_RESOURCE_VIEW_DESC& desc
 		) {
-			ID3D11ShaderResourceView* view;
+			PtrShaderResourceView view;
 			device->CreateShaderResourceView(resource, &desc, &view);
-			return std::shared_ptr<ShaderResourceView>(new ShaderResourceView(view));
+			return view;
+		}
+
+		RenderableTexture createRenderableTexture(
+			int width,
+			int height,
+			int mipLevels = 1
+		) {
+			RenderableTexture rt;
+
+			D3D11_TEXTURE2D_DESC textureDesc = CD3D11_TEXTURE2D_DESC(
+				DXGI_FORMAT_R8G8B8A8_UNORM,
+				width,
+				height,
+				1,				// count
+				mipLevels,
+				D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET
+			);
+			ID3D11Texture2D* frameBuffer = nullptr;
+			this->device->CreateTexture2D(&textureDesc, nullptr, &frameBuffer);
+			this->device->CreateRenderTargetView(frameBuffer, nullptr, rt.renderTargetView.GetAddressOf());
+			frameBuffer->Release();
+
+			D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc = CD3D11_SHADER_RESOURCE_VIEW_DESC(
+				D3D_SRV_DIMENSION_TEXTURE2D,
+				DXGI_FORMAT_R8G8B8A8_UNORM,
+				0,
+				mipLevels
+			);
+			device->CreateShaderResourceView(frameBuffer, &viewDesc, &rt.textureView);
+			
+			return rt;
 		}
 
 		// 大小为 1 的 texture，写 shader 的时候不用因为各种 texture 的有无而排列组合。。
-		std::shared_ptr<ShaderResourceView> createDefaultTexture(
+		PtrShaderResourceView createDefaultTexture(
 			const DirectX::XMFLOAT4& data = DirectX::XMFLOAT4(1, 1, 1, 1),
 			int textureDim = 2
 		) {
@@ -474,8 +519,6 @@ namespace LiteEngine::Rendering {
 			desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 			desc.CPUAccessFlags = 0;
 			desc.MiscFlags = 0;
-
-
 
 			D3D11_SUBRESOURCE_DATA initData;
 			initData.pSysMem = &data;
@@ -495,22 +538,22 @@ namespace LiteEngine::Rendering {
 		}
 
 	public:
-		std::shared_ptr<ShaderResourceView> createSimpleTexture2DFromWIC(const std::wstring& file);
-		std::shared_ptr<ShaderResourceView> createSimpleTexture2DFromWIC(const uint8_t* memory, size_t size);
-		std::shared_ptr<ShaderResourceView> createCubeMapFromDDS(const std::wstring& file);
+		PtrShaderResourceView createSimpleTexture2DFromWIC(const std::wstring& file);
+		PtrShaderResourceView createSimpleTexture2DFromWIC(const uint8_t* memory, size_t size);
+		PtrShaderResourceView createCubeMapFromDDS(const std::wstring& file);
 
-		std::shared_ptr<InputLayout> createInputLayout(std::shared_ptr<InputElementDescriptions> desc, std::shared_ptr<Shader> shader) {
+		PtrInputLayout createInputLayout(std::shared_ptr<InputElementDescriptions> desc, std::shared_ptr<Shader> shader) {
 			// TODO cache.
-			ID3D11InputLayout* out;
-			device->CreateInputLayout(desc->getData(), desc->getLength(),
+			PtrInputLayout out;
+			device->CreateInputLayout(desc->data(), (uint32_t)desc->size(),
 				shader->vertexShaderByteCode.data(), shader->vertexShaderByteCode.size(), &out);
-			return std::shared_ptr<InputLayout>(new InputLayout(out));
+			return out;
 		}
 
 		std::shared_ptr<MeshObject> createMeshObject(
 			std::shared_ptr<Mesh> mesh,
 			std::shared_ptr<Material> material,
-			std::shared_ptr<InputLayout> inputLayout,
+			PtrInputLayout inputLayout,
 			std::shared_ptr<ConstantBuffer> customConstantBuffer = nullptr
 		) {
 			static auto fixedConstantBuffer = this->createConstantBuffer(FixedPerobjectConstantData());
@@ -527,11 +570,7 @@ namespace LiteEngine::Rendering {
 			return this->averageFPS;
 		}
 
-		void renderSkybox(const RenderingScene& scene);
-
-		void renderFrame(const RenderingScene& scene) {
-			// prerender
-
+		void beginRendering() {
 			if (this->autoAdjustSize) {
 				this->resizeFitWindow();
 			}
@@ -550,28 +589,10 @@ namespace LiteEngine::Rendering {
 				this->averageFPS = this->averageFPS * 0.95 + this->currentFPS * (1 - 0.95);
 			}
 
-			this->updateFixedPerframeConstantBuffers(scene);
-
-
-			// render
-
-			// TODO change to black..
 			const float bg_color[4] = { 0.098f, 0.468f, 0.468f, 1.0f };
 
 			context->ClearRenderTargetView(this->renderTargetView.Get(), bg_color);
 			context->ClearDepthStencilView(this->depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1, 0);
-			// context->UpdateSubresource(buffer_objects.vertex_constant_buffer.Get(), 0, nullptr, x_offset, 0, 0);
-
-			// TODO: stencil depth
-
-
-			// Qs: 各个 stage 是什么的简称。。
-			// RS render state
-			// IA input assembly
-			// VS vertex shader
-			// PS pixel shader
-			// OM output merger
-			// https://www.cnblogs.com/mikewolf2002/archive/2012/03/24/2415141.html
 
 			// RS
 			D3D11_VIEWPORT viewport = {};
@@ -580,22 +601,39 @@ namespace LiteEngine::Rendering {
 			viewport.MaxDepth = 1;
 			viewport.MinDepth = 0;
 			context->RSSetViewports(1, &viewport);
-			context->RSSetState(this->rasterizerState.Get());
+		}
 
-			// OM
-			context->OMSetRenderTargets(1, this->renderTargetView.GetAddressOf(), this->depthStencilView.Get());
-			context->OMSetDepthStencilState(this->normalDepthStencilState.Get(), 1);	// TODO 没怎么看懂这个 1 是干什么的
 
-			// PS & VS
+		void renderPass(std::shared_ptr<RenderingPass>& pass) {
+			this->updateFixedPerframeConstantBuffers(*pass->scene);
+
+			context->OMSetRenderTargets(1, pass->renderTargetView.GetAddressOf(), pass->depthStencilView.Get());
+			context->OMSetDepthStencilState(pass->depthStencilState.Get(), 1);
+
+			context->RSSetState(pass->rasterizerState.Get());
+			
 			this->setConstantBuffers();
 
-			// PS VS 
-			for (auto& obj : scene.meshObjects) {
-				obj->draw(context.Get());
+			for (auto obj : pass->scene->meshObjects) {
+				obj->draw(this->context.Get());
 			}
+		}
 
-			this->renderSkybox(scene);
+		void renderScene(std::shared_ptr<RenderingScene> scene) {
+			auto pass = this->createDefaultRenderingPass(scene);
+			this->renderPass(pass);
+		}
 
+		void renderSkybox(
+			PtrShaderResourceView& skyboxTexture,
+			const RenderingScene::CameraInfo& camera,
+			DirectX::XMMATRIX skyboxTransform = DirectX::XMMatrixIdentity()
+		) {
+			auto pass = this->createSkyboxRenderingPass(skyboxTexture, camera, skyboxTransform);
+			this->renderPass(pass);
+		}
+
+		void swap() {
 			swapChain->Present(0, 0);
 		}
 
