@@ -161,6 +161,7 @@ namespace LiteEngine::Rendering {
 
 
 	using PtrShaderResourceView = Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>;
+	using PtrDepthStencilView = Microsoft::WRL::ComPtr<ID3D11DepthStencilView>;
 	using PtrRenderTargetView = Microsoft::WRL::ComPtr<ID3D11RenderTargetView>;
 
 	using PtrSamplerState =
@@ -173,12 +174,11 @@ namespace LiteEngine::Rendering {
 	};
 
 
-	// 可自定义程度稍微有点低。。
 	struct Material {
 		std::shared_ptr<ConstantBuffer> constants;
-		std::vector<std::pair<PtrShaderResourceView, uint32_t>> shaderResourceViews;
-		std::vector<std::pair<PtrSamplerState, uint32_t>> samplerStates;
 		std::shared_ptr<Shader> shader;
+		virtual std::vector<std::pair<Rendering::PtrShaderResourceView, uint32_t>> getShaderResourceViews() const = 0;
+		virtual std::vector<std::pair<Rendering::PtrSamplerState, uint32_t>> getSamplerStates() const = 0;
 
 		virtual void updateAndBindResources(ID3D11DeviceContext* context) {
 			if (this->constants) {
@@ -186,16 +186,17 @@ namespace LiteEngine::Rendering {
 				context->PSSetConstantBuffers(PSConstantBufferSlotID::MATERIAL, 1, this->constants->getAddressOf());
 			}
 
-			for (auto& [view, slot] : this->shaderResourceViews) {
+			for (auto& [view, slot] : this->getShaderResourceViews()) {
 				if (view == nullptr) {
 					ID3D11ShaderResourceView* view = nullptr;
 					context->PSSetShaderResources(slot, 1, &view);
 				} else {
+					// view.Get() == 0x00000120f7a25f70 
 					context->PSSetShaderResources(slot, 1, view.GetAddressOf());
 				}
 			}
 
-			for (auto& [sampler, slot] : this->samplerStates) {
+			for (auto& [sampler, slot] : this->getSamplerStates()) {
 				if (sampler == nullptr) {
 					ID3D11SamplerState* sampler = nullptr;
 					context->PSSetSamplers(slot, 1, &sampler);
@@ -204,6 +205,18 @@ namespace LiteEngine::Rendering {
 				}
 			}
 		}
+	};
+
+	struct StoredMaterial: public Material {
+		std::vector<std::pair<Rendering::PtrShaderResourceView, uint32_t>> shaderResourceViews;
+		std::vector<std::pair<Rendering::PtrSamplerState, uint32_t>> samplerStates;
+		virtual std::vector<std::pair<Rendering::PtrShaderResourceView, uint32_t>> getShaderResourceViews() const {
+			return shaderResourceViews;
+		}
+		virtual std::vector<std::pair<Rendering::PtrSamplerState, uint32_t>> getSamplerStates() const {
+			return samplerStates;
+		}
+
 	};
 
 	using PtrInputLayout = Microsoft::WRL::ComPtr<ID3D11InputLayout>;

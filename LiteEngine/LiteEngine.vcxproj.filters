@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Renderer\BasicMeshObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Renderer\Resources.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -35,9 +32,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Renderer\BasicMeshObject.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Renderer\Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>

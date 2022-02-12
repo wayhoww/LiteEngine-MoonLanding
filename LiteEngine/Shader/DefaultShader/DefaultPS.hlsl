@@ -137,71 +137,68 @@ float4 main(Default_VS_OUTPUT pdata) : SV_TARGET{
 	float3 cameraDir_W = normalize(cameraPos_W - pdata.position_W);	// i.e. V
 	float3 output = float3(0, 0, 0); // baseColor.xyz* float3(0.1, 0.1, 0.1);
 
-	// 只渲染一个面
-	if (dot(pdata.normal_W, cameraDir_W) >= 0) {
-		float2 texCoords[2] = { pdata.texCoord0, pdata.texCoord1 };
+	float2 texCoords[2] = { pdata.texCoord0, pdata.texCoord1 };
 
 
-		float4 sampledBaseColor = uvBaseColor < N_TEXCOORDS ?
-			texBaseColor.Sample(sampBaseColor, texCoords[uvBaseColor])
-			: float4(1, 1, 1, 1);
+	float4 sampledBaseColor = uvBaseColor < N_TEXCOORDS ?
+		texBaseColor.Sample(sampBaseColor, texCoords[uvBaseColor])
+		: float4(1, 1, 1, 1);
 
-		sampledBaseColor.xyz = pow(max(float3(0, 0, 0), sampledBaseColor.xyz), 2.2);
+	sampledBaseColor.xyz = pow(max(float3(0, 0, 0), sampledBaseColor.xyz), 2.2);
 
-		float4 baseColor = c_baseColor * pdata.color * sampledBaseColor;
-
-
-		float3 emissionColor = c_emissionColor * pdata.color *
-			(uvEmissionColor < N_TEXCOORDS ?
-				pow(max(float3(0, 0, 0), texEmissionColor.Sample(sampEmissionColor, texCoords[uvEmissionColor])).xyz, 2.2)
-				: float3(1, 1, 1));
+	float4 baseColor = c_baseColor * pdata.color * sampledBaseColor;
 
 
-		float metallic =
-			(uvMetallic < N_TEXCOORDS ?
-				texMetallic.Sample(sampMetallic, texCoords[uvMetallic])[channelMetallic] : 1)
-			* c_metallic;
+	float3 emissionColor = c_emissionColor.xyz * pdata.color.xyz *
+		(uvEmissionColor < N_TEXCOORDS ?
+			pow(max(float3(0, 0, 0), texEmissionColor.Sample(sampEmissionColor, texCoords[uvEmissionColor]).xyz), 2.2)
+			: float3(1, 1, 1));
 
-		float roughness =
-			(uvRoughness < N_TEXCOORDS ?
-				texRoughness.Sample(sampRoughness, texCoords[uvRoughness])[channelRoughness] : 1)
-			* c_roughness;
+	float metallic =
+		(uvMetallic < N_TEXCOORDS ?
+			texMetallic.Sample(sampMetallic, texCoords[uvMetallic])[channelMetallic] : 1)
+		* c_metallic;
 
-		float ao =
-			(uvAO < N_TEXCOORDS ?
-				texAO.Sample(sampAO, texCoords[uvAO])[channelAO] : 1);
-		ao = max(0, 1 + c_occlusionStrength * (ao - 1));
+	float roughness =
+		(uvRoughness < N_TEXCOORDS ?
+			texRoughness.Sample(sampRoughness, texCoords[uvRoughness])[channelRoughness] : 1)
+		* c_roughness;
 
-		float3 normal_W = uvNormal < N_TEXCOORDS ?
-			getNormal(
-				normalize(pdata.normal_W),
-				normalize(pdata.tangent_W),
-				texNormal.Sample(sampNormal, texCoords[uvNormal]).xyz,
-				c_normalScale
-			) : normalize(pdata.normal_W);
+	float ao =
+		(uvAO < N_TEXCOORDS ?
+			texAO.Sample(sampAO, texCoords[uvAO])[channelAO] : 1);
+	ao = max(0, 1 + c_occlusionStrength * (ao - 1));
+
+	float3 normal_W = uvNormal < N_TEXCOORDS ?
+		getNormal(
+			normalize(pdata.normal_W),
+			normalize(pdata.tangent_W),
+			texNormal.Sample(sampNormal, texCoords[uvNormal]).xyz,
+			c_normalScale
+		) : normalize(pdata.normal_W);
 
 
 		
-		for (uint i = 0; i < numberOfLights; i++) {
+	for (uint i = 0; i < numberOfLights; i++) {
 
-			float3 positionVecDist = lights[i].position_W - pdata.position_W;
-			float distance2 = dot(positionVecDist, positionVecDist);
-			float distance = sqrt(distance2);
-			float3 lightDir_W = positionVecDist / distance;	// i.e. L
+		float3 positionVecDist = lights[i].position_W - pdata.position_W;
+		float distance2 = dot(positionVecDist, positionVecDist);
+		float distance = sqrt(distance2);
+		float3 lightDir_W = positionVecDist / distance;	// i.e. L
 
-			float3 brdf = defaultMaterialBRDF(baseColor.xyz, metallic, roughness, 1.45, cameraDir_W, lightDir_W, normal_W);
+		float3 brdf = defaultMaterialBRDF(baseColor.xyz, metallic, roughness, 1.45, cameraDir_W, lightDir_W, normal_W);
 
-			float cosLightNormal = dot(normal_W, lightDir_W);
+		float cosLightNormal = dot(normal_W, lightDir_W);
 
-			output += brdf * lights[i].intensity * cosLightNormal / distance2;
-		}
-
-		// ambient 
-		output += 0.1 * baseColor.xyz * ao;
-
-		// emission
-		output += emissionColor;
+		output += brdf * lights[i].intensity * cosLightNormal / distance2;
 	}
+
+	// ambient 
+	output += 0.1 * baseColor.xyz * ao;
+
+	// emission
+	output += emissionColor;
+	
 
 	return float4(pow(max(float3(0, 0, 0), output), 1 / 2.2), 1.0);
 }

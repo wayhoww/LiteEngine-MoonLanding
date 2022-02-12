@@ -523,8 +523,8 @@ namespace LiteEngine::IO {
         out->sampRoughness = renderer.createSamplerState(desc);
 
         
-        out->consantBuffers = sConstantBuffer->getSharedInstance();
-        out->consantBuffers->cpuData<decltype(constants)>() = constants;
+        out->constants = sConstantBuffer->getSharedInstance();
+        out->constants->cpuData<decltype(constants)>() = constants;
 
         return out;
     }
@@ -615,7 +615,7 @@ namespace LiteEngine::IO {
             auto& renderer = Rendering::Renderer::getInstance();
             static std::once_flag onceFlag;
             std::call_once(onceFlag, [&]() {
-                defaultMaterial->consantBuffers = renderer.createConstantBuffer(SceneManagement::DefaultMaterialConstantData());
+                defaultMaterial->constants = renderer.createConstantBuffer(SceneManagement::DefaultMaterialConstantData());
 
                 static auto defaultSampler = renderer.createSamplerState(CD3D11_SAMPLER_DESC(CD3D11_DEFAULT()));
 
@@ -638,7 +638,7 @@ namespace LiteEngine::IO {
 
                 meshObj->data = renderer.createMeshObject(
                     mesh,
-                    std::shared_ptr<Rendering::Material>(new Rendering::Material()),
+                    std::shared_ptr<Rendering::Material>(new SceneManagement::DefaultMaterial()),
                     meshObj->material->getInputLayout(),
                     nullptr
                 );;

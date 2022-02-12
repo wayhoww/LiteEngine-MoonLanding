@@ -112,7 +112,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="IO\DefaultLoaderGLTF.cpp" />
-    <ClCompile Include="Renderer\BasicMeshObject.cpp" />
     <ClCompile Include="Renderer\Renderer.cpp" />
     <ClCompile Include="Renderer\Resources.cpp" />
     <ClCompile Include="Utilities\Utilities.cpp" />
@@ -120,7 +119,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IO\DefaultLoader.h" />
-    <ClInclude Include="Renderer\BasicMeshObject.h" />
     <ClInclude Include="Renderer\Renderer.h" />
     <ClInclude Include="Renderer\Resources.h" />
     <ClInclude Include="Scene\DefaultDS.h" />

@@ -48,12 +48,13 @@ namespace LiteEngine::Rendering {
 		auto shader = renderer.createShader(loadBinaryFromFile(L"SkyboxVS.cso"), loadBinaryFromFile( L"SkyboxPS.cso"));
 		auto inputLayout = renderer.createInputLayout(desc, shader);
 
-		std::shared_ptr<Material> material(new Material());
+		std::shared_ptr<StoredMaterial> material(new StoredMaterial());
 		material->shader = shader;
 		material->samplerStates = { { renderer.createSamplerState(CD3D11_SAMPLER_DESC(CD3D11_DEFAULT())), 0 } };
 		material->constants = renderer.createConstantBuffer(DirectX::XMMatrixIdentity());
 
-		return renderer.createMeshObject(mesh, material, inputLayout, nullptr);
+		auto obj = renderer.createMeshObject(mesh, material, inputLayout, nullptr);
+		return obj;
 	}
 
 	std::shared_ptr<RenderingPass> Renderer::createDefaultRenderingPass(
@@ -71,6 +72,8 @@ namespace LiteEngine::Rendering {
 		pass->scene = scene;
 		pass->renderTargetView = this->renderTargetView;
 		pass->depthStencilView = this->depthStencilView;
+		pass->clearStencil = false;
+
 		return pass;
 	}
 
@@ -90,7 +93,7 @@ namespace LiteEngine::Rendering {
 
 		static auto skyboxMeshObject = createSkyboxMeshObject(*this);
 
-		skyboxMeshObject->material->shaderResourceViews = {{ skyboxTexture, 0 }};
+		std::dynamic_pointer_cast<StoredMaterial>(skyboxMeshObject->material)->shaderResourceViews = {{ skyboxTexture, 0 }};
 		auto& trans_CubeMap = skyboxMeshObject->material->constants->cpuData<DirectX::XMMATRIX>();
 		auto det = DirectX::XMMatrixDeterminant(skyboxTransform);
 		trans_CubeMap = DirectX::XMMatrixInverse(&det, skyboxTransform);
@@ -102,6 +105,9 @@ namespace LiteEngine::Rendering {
 		pass->scene = std::shared_ptr<RenderingScene>(scene);
 		pass->renderTargetView = this->renderTargetView;
 		pass->depthStencilView = this->depthStencilView;
+		pass->clearColor = false;
+		pass->clearDepth = false;
+		pass->clearStencil = false;
 		return pass;
 	}
 

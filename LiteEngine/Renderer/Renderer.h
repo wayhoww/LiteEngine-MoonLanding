@@ -120,11 +120,19 @@ namespace LiteEngine::Rendering {
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizerState;
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
+
+		bool clearDepth = true;
+		bool clearStencil = true;
+		float depthValue = 1;
+		int stencilValue = 0;
+
+		bool clearColor = false;
+		DirectX::XMFLOAT4 colorValue;
 	};
 
 	class Renderer {
 
-	protected:
+	public:
 		std::shared_ptr<RenderingPass> createRenderingPassWithoutSceneAndTarget(
 			D3D11_RASTERIZER_DESC rasterizerDesc,
 			D3D11_DEPTH_STENCIL_DESC depthStencilDesc
@@ -134,7 +142,6 @@ namespace LiteEngine::Rendering {
 			this->device->CreateDepthStencilState(&depthStencilDesc, &pass->depthStencilState);
 			return pass;
 		}
-	public:
 
 		std::shared_ptr<RenderingPass> createDefaultRenderingPass(
 			std::shared_ptr<RenderingScene>& scene
@@ -146,11 +153,29 @@ namespace LiteEngine::Rendering {
 			DirectX::XMMATRIX skyboxTransform
 		);
 
+		PtrDepthStencilView createDepthStencilView(int width, int height) {
+			PtrDepthStencilView view;
+			ID3D11Texture2D* depthStencilBuffer = NULL;
+			CD3D11_TEXTURE2D_DESC depthStencilTextureDesc(
+				DXGI_FORMAT_D24_UNORM_S8_UINT,
+				width,
+				height, 1, 0, D3D11_BIND_DEPTH_STENCIL
+			);
+			device->CreateTexture2D(&depthStencilTextureDesc, NULL, &depthStencilBuffer);
+			CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(
+				D3D11_DSV_DIMENSION_TEXTURE2D,
+				DXGI_FORMAT_D24_UNORM_S8_UINT
+			);
+			device->CreateDepthStencilView(depthStencilBuffer, &depthStencilViewDesc, &view);
+			depthStencilBuffer->Release();
+			return view;
+		}
+
+		Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
 	protected:
 
 
 		Microsoft::WRL::ComPtr<ID3D11Device> device;
-		Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
 		Microsoft::WRL::ComPtr<IDXGISwapChain> swapChain;
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
@@ -589,11 +614,6 @@ namespace LiteEngine::Rendering {
 				this->averageFPS = this->averageFPS * 0.95 + this->currentFPS * (1 - 0.95);
 			}
 
-			const float bg_color[4] = { 0.098f, 0.468f, 0.468f, 1.0f };
-
-			context->ClearRenderTargetView(this->renderTargetView.Get(), bg_color);
-			context->ClearDepthStencilView(this->depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1, 0);
-
 			// RS
 			D3D11_VIEWPORT viewport = {};
 			viewport.Width = (float)this->width;
@@ -605,6 +625,17 @@ namespace LiteEngine::Rendering {
 
 
 		void renderPass(std::shared_ptr<RenderingPass>& pass) {
+			if (pass->clearColor) {
+				context->ClearRenderTargetView(pass->renderTargetView.Get(), reinterpret_cast<float*>(&pass->colorValue));
+			}
+			D3D11_CLEAR_FLAG clearFlag = D3D11_CLEAR_FLAG(0);
+			if (pass->clearDepth) clearFlag = D3D11_CLEAR_FLAG(clearFlag | D3D11_CLEAR_DEPTH);
+			if (pass->clearStencil) clearFlag = D3D11_CLEAR_FLAG(clearFlag | D3D11_CLEAR_STENCIL);
+
+			if (clearFlag) {
+				context->ClearDepthStencilView(pass->depthStencilView.Get(), clearFlag, pass->depthValue, pass->stencilValue);
+			}
+
 			this->updateFixedPerframeConstantBuffers(*pass->scene);
 
 			context->OMSetRenderTargets(1, pass->renderTargetView.GetAddressOf(), pass->depthStencilView.Get());

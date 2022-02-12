@@ -2,6 +2,7 @@
 
 #include "../Renderer/Resources.h"
 #include "../Renderer/Renderer.h"
+#include "DefaultDS.h"
 
 #include <string>
 #include <any>
@@ -114,17 +115,34 @@ namespace LiteEngine::SceneManagement {
 			);
 			return *this;
 		}
+
+		Object& rotateLocalCoord(const DirectX::XMFLOAT3& axis, float angle) {
+			auto axisParent3 = getDirectionFloat3InParent(axis);
+			auto axisParent = DirectX::XMLoadFloat3(&axisParent3);
+			this->transR = DirectX::XMQuaternionMultiply(
+				this->transR, 
+				DirectX::XMQuaternionRotationAxis(axisParent, angle)
+			);
+			return *this;
+		}
+
+		DirectX::XMMATRIX getLocalToWorldMatrix() const {
+			auto out = this->getTransformMatrix();
+		
+			if (auto ptr = this->parent.lock(); ptr) {
+				return DirectX::XMMatrixMultiply(ptr->getLocalToWorldMatrix(), out);
+			} else {
+				return out;
+			}
+			
+		}
 	};
 
 	// TODO: vertex-shader-material 实用性校验
-	struct Material {
+	struct Material: public Rendering::Material {
 	protected:
 		Material() = default;
 	public:
-		std::shared_ptr<Rendering::Shader> shader;
-		std::shared_ptr<Rendering::ConstantBuffer> consantBuffers;
-		virtual std::vector<std::pair<Rendering::PtrShaderResourceView, uint32_t>> getShaderResourceViews() const = 0;
-		virtual std::vector<std::pair<Rendering::PtrSamplerState, uint32_t>> getSamplerStates() const = 0;
 		virtual Rendering::PtrInputLayout getInputLayout() const = 0;
 	};
 
@@ -164,11 +182,7 @@ namespace LiteEngine::SceneManagement {
 
 			if (auto mesh = std::dynamic_pointer_cast<Mesh>(node); mesh) {
 				auto& meshObj = mesh->data;
-				std::shared_ptr<Rendering::Material> mat(new Rendering::Material());
-				meshObj->material->constants = mesh->material->consantBuffers;
-				meshObj->material->samplerStates = mesh->material->getSamplerStates();
-				meshObj->material->shaderResourceViews = mesh->material->getShaderResourceViews();
-				meshObj->material->shader = mesh->material->shader;
+				meshObj->material = mesh->material;
 				meshObj->transform = newTransform;
 				dest->meshObjects.push_back(meshObj);
 			} else if (auto light = std::dynamic_pointer_cast<Light>(node); light) {
@@ -202,6 +216,14 @@ namespace LiteEngine::SceneManagement {
 			for (auto child : node->children) {
 				buildRenderingSceneRecursively(dest, child, newTransform);
 			}
+		}
+
+		Rendering::RenderingScene::CameraInfo getCameraInfo(std::shared_ptr<Camera> camera) {
+			auto mat = camera->getLocalToWorldMatrix();
+			auto det = DirectX::XMMatrixDeterminant(mat);
+			auto out = camera->data;
+			out.trans_W2V = DirectX::XMMatrixInverse(&det, mat);
+			return out;
 		}
 
 		std::shared_ptr<Rendering::RenderingScene> getRenderingScene() {

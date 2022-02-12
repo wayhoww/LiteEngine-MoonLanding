@@ -60,8 +60,32 @@ int WINAPI wWinMain(
 
 	lesm::Scene smScene;
 	smScene.rootObject = res;
-	smScene.activeCamera = smScene.search<lesm::Camera>("Camera");
+	auto mainCamera = smScene.search<lesm::Camera>("Camera");
+	mainCamera->data.farZ = 1000;
+	
+	auto probeCamera = smScene.search<lesm::Camera>("ProbeCamera");
+	probeCamera->data.farZ = 1000;
+	//probeCamera->data.aspectRatio = 1.0;
 	auto skybox = renderer.createCubeMapFromDDS(L"skybox.dds");
+
+	auto movingObject = smScene.searchObject("Icosphere.014");
+	movingObject->moveParentCoord({ 0, 0, 0.5 });
+
+	auto renderableTexture = renderer.createRenderableTexture(1000, 1000, 1);
+	
+	auto screenObj = smScene.searchObject("ScreenPlane")->children[0];
+	auto screenPlane = std::dynamic_pointer_cast<lesm::Mesh>(screenObj);
+	auto screenMat = std::dynamic_pointer_cast<lesm::DefaultMaterial>(screenPlane->material);
+	
+	auto offscreenPassRastDesc = CD3D11_RASTERIZER_DESC(CD3D11_DEFAULT());
+	offscreenPassRastDesc.CullMode = D3D11_CULL_NONE;
+	auto offscreenPass = renderer.createRenderingPassWithoutSceneAndTarget(
+		offscreenPassRastDesc,
+		CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT())
+	);
+	offscreenPass->renderTargetView = renderableTexture.renderTargetView;
+	offscreenPass->depthStencilView = renderer.createDepthStencilView(1000, 1000);
+	offscreenPass->clearStencil = false;
 	
 	// Z-up 右手系 -> Y-up 左手系
 	// C++ 中出现的所有矩阵都应该是用于右乘（vec * mat）的矩阵
@@ -72,13 +96,16 @@ int WINAPI wWinMain(
 		0, 0, 0, 1
 	};
 
-	window.resizeClientArea((int)(1080 * smScene.activeCamera->data.aspectRatio), 1080);
+	window.resizeClientArea((int)(1080 * mainCamera->data.aspectRatio), 1080);
 	renderer.resizeFitWindow();
 
 	
 	auto t_begin = clock();
 
-	auto cameraBackup = *smScene.activeCamera;
+	auto cameraBackup = *mainCamera;
+
+	auto redTexture = renderer.createDefaultTexture({ 1, 0, 0, 0 }, 2);
+	auto blueTexture = renderer.createDefaultTexture({ 0, 0, 1, 0 }, 2);
 
 	window.renderCallback = [&](
 		const le::RenderingWindow& window,
@@ -121,22 +148,44 @@ int WINAPI wWinMain(
 				}
 			}
 		}
-		float moveUnit = float(1. / 60 / 3.f);
+		float moveUnit = float(1. / 60 * 3);
 		float rotateUnit = float(3.14159 / 60 / 10);
 
-		smScene.activeCamera->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
-		smScene.activeCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0, 0}, rotateUnit * countRotateRight));
-		smScene.activeCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({1, 0, 0, 0}, rotateUnit * countRotateUp));
+		movingObject->rotateLocalCoord({ 0, 0, 1 }, 0.02 / 3.14);
+		movingObject->moveLocalCoord({ 0.02, 0, 0 });
+		mainCamera->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
+		mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0, 0}, rotateUnit * countRotateRight));
+		mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({1, 0, 0, 0}, rotateUnit * countRotateUp));
 		if (resetCamera) {
-			*smScene.activeCamera = cameraBackup;
+			*mainCamera = cameraBackup;
 		}
+
+		smScene.activeCamera = mainCamera;
+
 
 		// 其实 getRenderingScene 可以在另外一个线程访问，完全不涉及图形 API
 		std::shared_ptr<ler::RenderingScene> scene = smScene.getRenderingScene();
+		auto mainRenderingCamera = scene->camera;
 		// renderer.renderFrame(*scene);
+
 		renderer.beginRendering();
+
+		offscreenPass->scene = scene;
+		offscreenPass->scene->camera = smScene.getCameraInfo(probeCamera);
+		screenMat->texEmissionColor = nullptr; 
+		screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = UINT32_MAX;
+		
+		renderer.renderPass(offscreenPass);
+		
+		scene->camera = mainRenderingCamera;
+
+		screenMat->texEmissionColor = renderableTexture.textureView;
+		screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = 0;
 		renderer.renderScene(scene);
+
+		
 		renderer.renderSkybox(skybox, scene->camera, skyboxTransform);
+
 		renderer.swap();
 
 		auto fps = renderer.getAverageFPS();
