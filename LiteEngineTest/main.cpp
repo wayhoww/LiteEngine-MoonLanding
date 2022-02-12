@@ -151,8 +151,8 @@ int WINAPI wWinMain(
 		float moveUnit = float(1. / 60 * 3);
 		float rotateUnit = float(3.14159 / 60 / 10);
 
-		movingObject->rotateLocalCoord({ 0, 0, 1 }, 0.02 / 3.14);
-		movingObject->moveLocalCoord({ 0.02, 0, 0 });
+		movingObject->rotateLocalCoord({ 0, 0, 1 }, 0.02f / 3.14f);
+		movingObject->moveLocalCoord({ 0.02f, 0, 0 });
 		mainCamera->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
 		mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0, 0}, rotateUnit * countRotateRight));
 		mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({1, 0, 0, 0}, rotateUnit * countRotateUp));
