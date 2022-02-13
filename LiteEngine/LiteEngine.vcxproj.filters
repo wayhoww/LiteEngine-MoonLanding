@@ -30,6 +30,9 @@
     <ClCompile Include="IO\DefaultLoaderGLTF.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Renderer\Shadow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Renderer\Renderer.h">
@@ -66,6 +69,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\tiny_gltf\stb_image_write.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\Shadow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

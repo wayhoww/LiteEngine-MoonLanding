@@ -27,4 +27,6 @@ static inline void log(LogLevel level, const std::wstring& s) {
 	OutputDebugStringW(s.c_str());
 }
 
+constexpr float PI = 3.141592653589793115997963468544f;
+
 }
