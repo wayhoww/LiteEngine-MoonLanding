@@ -74,6 +74,13 @@ namespace LiteEngine::Rendering {
 		pass->depthStencilView = this->depthStencilView;
 		pass->clearStencil = false;
 
+		D3D11_VIEWPORT viewport = {};
+		viewport.Width = (float)this->width;
+		viewport.Height = (float)this->height;
+		viewport.MaxDepth = 1;
+		viewport.MinDepth = 0;
+		pass->viewport = viewport;
+
 		return pass;
 	}
 
@@ -108,6 +115,14 @@ namespace LiteEngine::Rendering {
 		pass->clearColor = false;
 		pass->clearDepth = false;
 		pass->clearStencil = false;
+
+		D3D11_VIEWPORT viewport = {};
+		viewport.Width = (float)this->width;
+		viewport.Height = (float)this->height;
+		viewport.MaxDepth = 1;
+		viewport.MinDepth = 0;
+		pass->viewport = viewport;
+
 		return pass;
 	}
 

@@ -128,6 +128,8 @@ namespace LiteEngine::Rendering {
 
 		bool clearColor = false;
 		DirectX::XMFLOAT4 colorValue;
+
+		D3D11_VIEWPORT viewport;
 	};
 
 	class Renderer {
@@ -140,6 +142,7 @@ namespace LiteEngine::Rendering {
 			std::shared_ptr<RenderingPass> pass(new RenderingPass());
 			this->device->CreateRasterizerState(&rasterizerDesc, &pass->rasterizerState);
 			this->device->CreateDepthStencilState(&depthStencilDesc, &pass->depthStencilState);
+
 			return pass;
 		}
 
@@ -613,18 +616,12 @@ namespace LiteEngine::Rendering {
 				this->currentFPS = 1.0 / elapsedTicks * this->timer_frequency;
 				this->averageFPS = this->averageFPS * 0.95 + this->currentFPS * (1 - 0.95);
 			}
-
-			// RS
-			D3D11_VIEWPORT viewport = {};
-			viewport.Width = (float)this->width;
-			viewport.Height = (float)this->height;
-			viewport.MaxDepth = 1;
-			viewport.MinDepth = 0;
-			context->RSSetViewports(1, &viewport);
 		}
 
 
-		void renderPass(std::shared_ptr<RenderingPass>& pass) {
+		void renderPass(std::shared_ptr<RenderingPass>& pass) {		
+			context->RSSetViewports(1, &pass->viewport);
+
 			if (pass->clearColor) {
 				context->ClearRenderTargetView(pass->renderTargetView.Get(), reinterpret_cast<float*>(&pass->colorValue));
 			}

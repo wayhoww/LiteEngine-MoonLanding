@@ -65,7 +65,7 @@ int WINAPI wWinMain(
 	
 	auto probeCamera = smScene.search<lesm::Camera>("ProbeCamera");
 	probeCamera->data.farZ = 1000;
-	//probeCamera->data.aspectRatio = 1.0;
+	probeCamera->data.aspectRatio = 1;
 	auto skybox = renderer.createCubeMapFromDDS(L"skybox.dds");
 
 	auto movingObject = smScene.searchObject("Icosphere.014");
@@ -86,6 +86,12 @@ int WINAPI wWinMain(
 	offscreenPass->renderTargetView = renderableTexture.renderTargetView;
 	offscreenPass->depthStencilView = renderer.createDepthStencilView(1000, 1000);
 	offscreenPass->clearStencil = false;
+	D3D11_VIEWPORT viewport = {};
+	viewport.Width = 1000;
+	viewport.Height = 1000;
+	viewport.MaxDepth = 1;
+	viewport.MinDepth = 0;
+	offscreenPass->viewport = viewport;
 	
 	// Z-up 右手系 -> Y-up 左手系
 	// C++ 中出现的所有矩阵都应该是用于右乘（vec * mat）的矩阵
@@ -151,8 +157,8 @@ int WINAPI wWinMain(
 		float moveUnit = float(1. / 60 * 3);
 		float rotateUnit = float(3.14159 / 60 / 10);
 
-		movingObject->rotateLocalCoord({ 0, 0, 1 }, 0.02 / 3.14);
-		movingObject->moveLocalCoord({ 0.02, 0, 0 });
+		movingObject->rotateLocalCoord({ 0, 0, 1 }, 0.02f / le::PI);
+		movingObject->moveLocalCoord({ 0.02f, 0, 0 });
 		mainCamera->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
 		mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0, 0}, rotateUnit * countRotateRight));
 		mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({1, 0, 0, 0}, rotateUnit * countRotateUp));

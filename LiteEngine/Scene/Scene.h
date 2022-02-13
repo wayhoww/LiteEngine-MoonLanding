@@ -167,8 +167,32 @@ namespace LiteEngine::SceneManagement {
 	};
 
 	struct Scene {
+
+	private:
+		static float signof(float f) {
+			if (f >= 0) return 1;
+			else return -1;
+		}
+	public:
 		std::shared_ptr<Object> rootObject;
 		std::shared_ptr<Camera> activeCamera;
+
+		static DirectX::XMMATRIX setAbsScaleComponentToOne(const DirectX::XMMATRIX& mat) {
+			DirectX::XMVECTOR scale, rotate, translate;
+			DirectX::XMMatrixDecompose(&scale, &rotate, &translate, mat);
+			DirectX::XMFLOAT3 scale3;
+			DirectX::XMStoreFloat3(&scale3, scale);
+			scale3.x = signof(scale3.x);
+			scale3.y = signof(scale3.y);
+			scale3.z = signof(scale3.z);
+			scale = DirectX::XMLoadFloat3(&scale3);
+			return DirectX::XMMatrixAffineTransformation(
+				scale,
+				{ 0, 0, 0, 1 },
+				rotate,
+				translate
+			);
+		}
 
 		void buildRenderingSceneRecursively(
 			std::shared_ptr<Rendering::RenderingScene> dest,
@@ -209,8 +233,9 @@ namespace LiteEngine::SceneManagement {
 				dest->lights.push_back(lightDesc);
 			} else if (auto camera = std::dynamic_pointer_cast<Camera>(node); camera && camera->name == activeCamera->name) {
 				dest->camera = camera->data;
-				auto det = DirectX::XMMatrixDeterminant(newTransform);
-				dest->camera.trans_W2V = DirectX::XMMatrixInverse(&det, newTransform);
+				auto cameraTrans = setAbsScaleComponentToOne(newTransform);
+				auto det = DirectX::XMMatrixDeterminant(cameraTrans);
+				dest->camera.trans_W2V = DirectX::XMMatrixInverse(&det, cameraTrans);
 			}
 
 			for (auto child : node->children) {
@@ -219,7 +244,7 @@ namespace LiteEngine::SceneManagement {
 		}
 
 		Rendering::RenderingScene::CameraInfo getCameraInfo(std::shared_ptr<Camera> camera) {
-			auto mat = camera->getLocalToWorldMatrix();
+			auto mat = setAbsScaleComponentToOne(camera->getLocalToWorldMatrix());
 			auto det = DirectX::XMMatrixDeterminant(mat);
 			auto out = camera->data;
 			out.trans_W2V = DirectX::XMMatrixInverse(&det, mat);
