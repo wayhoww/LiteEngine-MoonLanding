@@ -6,6 +6,7 @@
 #include "LiteEngine/Renderer/Resources.h"
 #include "LiteEngine/Utilities/Utilities.h"
 #include "LiteEngine/IO/DefaultLoader.h"
+#include "LiteEngine/Renderer/Shadow.h"
 
 #include <numeric>
 #include <algorithm>
@@ -172,6 +173,9 @@ int WINAPI wWinMain(
 		// 其实 getRenderingScene 可以在另外一个线程访问，完全不涉及图形 API
 		std::shared_ptr<ler::RenderingScene> scene = smScene.getRenderingScene();
 		auto mainRenderingCamera = scene->camera;
+
+		// 
+		auto cameras = ler::getSuggestedPointSpotLightDepthCamera(mainRenderingCamera, scene->lights[0], { 0.1f, 1.f, 2.f, 4.f });
 		// renderer.renderFrame(*scene);
 
 		renderer.beginRendering();

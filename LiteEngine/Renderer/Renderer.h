@@ -132,9 +132,50 @@ namespace LiteEngine::Rendering {
 		D3D11_VIEWPORT viewport;
 	};
 
+
+
 	class Renderer {
 
 	public:
+		std::shared_ptr<RenderingPass> createDepthMapPass(uint32_t count) {
+			
+		}
+
+		std::shared_ptr<DepthTextureArray> createDepthTextureArray(uint32_t count) {
+			std::shared_ptr<DepthTextureArray> out(new DepthTextureArray());
+			out->depthBuffers.resize(count);
+
+			constexpr auto DXGI_FORMAT = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+			ID3D11Texture2D* depthStencilBuffer;
+			CD3D11_TEXTURE2D_DESC depthStencilTextureDesc(
+				DXGI_FORMAT, width, height, 
+				count, 0, D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE
+			);
+
+			device->CreateTexture2D(&depthStencilTextureDesc, nullptr, &depthStencilBuffer);
+			
+			for (uint32_t i = 0; i < count; i++) {
+				CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(
+					D3D11_DSV_DIMENSION_TEXTURE2DARRAY,
+					DXGI_FORMAT, 0, i, 1
+				);
+				device->CreateDepthStencilView(depthStencilBuffer, &depthStencilViewDesc, &out->depthBuffers[i]);
+			}
+
+			CD3D11_SHADER_RESOURCE_VIEW_DESC shaderResouceViewDesc {
+				D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
+				DXGI_FORMAT, 0, 0, 0, count 
+			};
+
+			device->CreateShaderResourceView(depthStencilBuffer, 
+				static_cast<D3D11_SHADER_RESOURCE_VIEW_DESC*>(&shaderResouceViewDesc), 
+				&out->textureArray);
+
+			depthStencilBuffer->Release();
+
+			return out;
+		}
+
 		std::shared_ptr<RenderingPass> createRenderingPassWithoutSceneAndTarget(
 			D3D11_RASTERIZER_DESC rasterizerDesc,
 			D3D11_DEPTH_STENCIL_DESC depthStencilDesc
@@ -158,13 +199,13 @@ namespace LiteEngine::Rendering {
 
 		PtrDepthStencilView createDepthStencilView(int width, int height) {
 			PtrDepthStencilView view;
-			ID3D11Texture2D* depthStencilBuffer = NULL;
+			ID3D11Texture2D* depthStencilBuffer = nullptr;
 			CD3D11_TEXTURE2D_DESC depthStencilTextureDesc(
 				DXGI_FORMAT_D24_UNORM_S8_UINT,
 				width,
 				height, 1, 0, D3D11_BIND_DEPTH_STENCIL
 			);
-			device->CreateTexture2D(&depthStencilTextureDesc, NULL, &depthStencilBuffer);
+			device->CreateTexture2D(&depthStencilTextureDesc, nullptr, &depthStencilBuffer);
 			CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(
 				D3D11_DSV_DIMENSION_TEXTURE2D,
 				DXGI_FORMAT_D24_UNORM_S8_UINT
@@ -348,13 +389,13 @@ namespace LiteEngine::Rendering {
 
 		void recreateDepthStencilView() {
 			this->depthStencilView.Reset();
-			ID3D11Texture2D* depthStencilBuffer = NULL;
+			ID3D11Texture2D* depthStencilBuffer = nullptr;
 			CD3D11_TEXTURE2D_DESC depthStencilTextureDesc(
 				DXGI_FORMAT_D24_UNORM_S8_UINT,
 				this->width,
 				this->height, 1, 0, D3D11_BIND_DEPTH_STENCIL
 			);
-			device->CreateTexture2D(&depthStencilTextureDesc, NULL, &depthStencilBuffer);
+			device->CreateTexture2D(&depthStencilTextureDesc, nullptr, &depthStencilBuffer);
 			CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(
 				D3D11_DSV_DIMENSION_TEXTURE2D,
 				DXGI_FORMAT_D24_UNORM_S8_UINT

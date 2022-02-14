@@ -50,20 +50,25 @@ namespace LiteEngine::Rendering {
 		// 求出目标范围“中心点”
 		DirectX::XMVECTOR rangeCoordSum = {};
 		for (auto& pos : rangeWorld) {
-			DirectX::XMVectorAdd(pos, rangeCoordSum);
+			rangeCoordSum = DirectX::XMVectorAdd(pos, rangeCoordSum);
 		}
 		DirectX::XMVECTOR worldCenter = DirectX::XMVectorScale(rangeCoordSum, 1.f / 8);
 		
 		// 使得深度相机朝向中心点，并且指定 top
+		// corner case: transZ == 0
 		// corner case：top 和 transZ 平行，那么略微偏移 top
-		/*auto transZ = DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(worldCenter, lightCoord3));
+		auto transZ = DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(worldCenter, lightCoord3));
+		DirectX::XMFLOAT4 transZ4;
+		DirectX::XMStoreFloat4(&transZ4, transZ);
+		transZ4.w = 0;
+		transZ = DirectX::XMLoadFloat4(&transZ4);
 		auto transX = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(transZ, up));
 		auto transY = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(transX, transZ));
 		auto lightRotate = DirectX::XMMATRIX(transX, transY, transZ, DirectX::XMVECTOR{ 0, 0, 0, 1 });
-		*/
+		
 		auto lightTransform = DirectX::XMMatrixMultiply(
 			// in: 3d vector offset
-			DirectX::XMMatrixLookAtLH(lightCoord3, worldCenter, up),
+			lightRotate, //DirectX::XMMatrixLookAtLH(lightCoord3, worldCenter, up),
 			DirectX::XMMatrixTranslationFromVector(lightCoord3)
 		);
 		auto det = DirectX::XMMatrixDeterminant(lightTransform);
@@ -109,7 +114,7 @@ namespace LiteEngine::Rendering {
 		info.fieldOfViewYRadian = 2 * atanf(std::max(abs(maximums.y), abs(minimums.y)) / minimums.z);
 		
 		// 不合适
-		constexpr float FOV_THRESHOLD = 140.f / 180.f * PI;
+		constexpr float FOV_THRESHOLD = 160.f / 180.f * PI;
 		if (!std::isfinite(info.fieldOfViewYRadian) ||
 			info.fieldOfViewYRadian > FOV_THRESHOLD ||
 			info.fieldOfViewYRadian <= 0
