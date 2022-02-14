@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include <DirectXTex.h>
 #include "../Utilities/Utilities.h"
+#include "Shadow.h"
 
 namespace LiteEngine::Rendering {
 
@@ -50,7 +51,7 @@ namespace LiteEngine::Rendering {
 
 		
 		std::shared_ptr<StoredMaterial> material(new StoredMaterial());
-		material->pixelShader = renderer.createPixelShader(loadBinaryFromFile(L"SkyboxPS.cso"));
+		material->defaultShader = renderer.createPixelShader(loadBinaryFromFile(L"SkyboxPS.cso"));
 		material->samplerStates = { { renderer.createSamplerState(CD3D11_SAMPLER_DESC(CD3D11_DEFAULT())), 0 } };
 		material->constants = renderer.createConstantBuffer(DirectX::XMMatrixIdentity());
 
@@ -173,6 +174,76 @@ namespace LiteEngine::Rendering {
 		DirectX::LoadFromWICMemory(memory, size, flags, &meta, image);
 
 		return doCreateSimpleTexture2DFromWIC(meta, image, *this, device.Get());
+	}
+
+	void Renderer::renderScene(
+		std::shared_ptr<RenderingScene> scene,
+		bool renderShadow // = true
+	) {
+		if (renderShadow) {
+			auto mainCamera = scene->camera;
+			auto ratio = scene->camera.farZ / scene->camera.nearZ;
+			const std::vector<float> zList {
+				scene->camera.nearZ,
+				scene->camera.nearZ * ratio * 0.01f,
+				scene->camera.nearZ * ratio * 0.1f,
+				scene->camera.farZ
+			};
+			auto& constants = this->fixedPerframePSConstantBuffer->cpuData<FixedPerframePSConstantBufferData>();
+			for (int i = 0; i < 4; i++) {
+				constants.CSMZList[i][0] = zList[i];
+			}
+			for (uint32_t lightID = 0; lightID < (uint32_t)scene->lights.size(); lightID++) {
+
+				auto maps = getSuggestedPointSpotLightDepthCamera(mainCamera, scene->lights[lightID], zList);
+				for (uint32_t mapID = 0; mapID < (uint32_t)maps.size(); mapID++) {
+					auto& [feasible, lightCamera, z1, z2] = maps[mapID];
+					if (!feasible) {
+						constants.CSMValid[lightID][mapID][0] = false;
+						continue;
+					} 
+
+					constants.CSMValid[lightID][mapID][0] = true;
+					constants.trans_W2CMS[lightID][mapID] = DirectX::XMMatrixMultiply(
+						DirectX::XMMatrixMultiply(
+							lightCamera.trans_W2V,
+							lightCamera.getV2CMatrix()
+						),
+						DirectX::XMMATRIX {
+							0.5, 0, 0, 0,
+							0, -0.5, 0, 0,
+							0, 0, 1.0, 0,
+							0, 0.5, 0.5, 1
+						}
+					);
+
+					scene->camera = lightCamera;
+
+					auto shadowPass = this->createDepthMapPass(scene, 
+						this->shadowDepthBuffer->depthBuffers[lightID * NUMBER_SHADOW_MAP_PER_LIGHT + mapID], 
+						this->shadowWidth, 
+						this->shadowHeight
+					);
+
+					this->renderPass(shadowPass);
+
+				}
+			}	
+
+			ID3D11RenderTargetView* nullViews = nullptr;
+			context->OMSetRenderTargets(1, &nullViews, nullptr);
+
+			scene->camera = mainCamera;
+		}
+
+		// const std::vector<float> zList = {}
+		//auto shadowPass = this->createDepthMapPass(scene, texArray->depthBuffers[i]);
+		static auto depthMapSamplerState = this->createSamplerState(CD3D11_SAMPLER_DESC(CD3D11_DEFAULT()));
+
+		auto mainPass = this->createDefaultRenderingPass(scene);
+		mainPass->CSMDepthMapArray = this->shadowDepthBuffer;
+		mainPass->CSMDepthMapSampler = depthMapSamplerState;
+		this->renderPass(mainPass);
 	}
 
 }

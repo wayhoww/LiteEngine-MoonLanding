@@ -310,9 +310,12 @@ namespace LiteEngine::IO {
             auto newIndices = load_data<SmallMatrix<1, 1, uint32_t>>(model, primitive.indices);
             out.indexBegin = (uint32_t)indices.size();
             out.indexLength = (uint32_t)newIndices.size();
-            std::transform(newIndices.begin(), newIndices.end(),
-                std::back_inserter(indices), [offset](auto x) { return x.data[0][0] + offset; });
-            
+            for (size_t i = 0; i + 2 < newIndices.size(); i += 3) {
+                // ¶ÔÓ¦ÓÚ CULL_BACK
+                indices.push_back(offset + newIndices[i + 2].data[0][0]);
+                indices.push_back(offset + newIndices[i + 1].data[0][0]);
+                indices.push_back(offset + newIndices[i + 0].data[0][0]);
+            }
 
             // vbo
             std::vector<Vec3f> positions, normals, tangents;
@@ -779,18 +782,24 @@ namespace LiteEngine::IO {
 
         static auto shader = Rendering::Renderer::getInstance().createVertexShader(
             loadBinaryFromFile(L"DefaultVS.cso")
-        );
-
+        );        
         static auto inputLayout = renderer.createInputLayout(SceneManagement::DefaultVertexData::getDescription(), shader);
 
+        static auto depthMapShader = Rendering::Renderer::getInstance().createVertexShader(
+            loadBinaryFromFile(L"DefaultVSDepthMap.cso")
+        );
+        static auto depthMapInputLayout = renderer.createInputLayout(SceneManagement::DefaultVertexData::getDescription(), depthMapShader);
+
+        
         
         for (auto meshGroup : meshIn) {
             meshes.push_back({});
             for (auto mesh : meshGroup) {
                 meshes.rbegin()->push_back({ 
-                    renderer.createMesh(vbo, ido, mesh.indexBegin, mesh.indexLength, shader, inputLayout, nullptr, nullptr), 
+                    renderer.createMesh(vbo, ido, mesh.indexBegin, mesh.indexLength, 
+                        shader, inputLayout, depthMapShader, depthMapInputLayout), 
                     mesh.materialID, 
-                    mesh.name 
+                    mesh.name
                 });
             }
         }

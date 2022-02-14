@@ -180,12 +180,12 @@ int WINAPI wWinMain(
 
 		renderer.beginRendering();
 
-		offscreenPass->scene = scene;
-		offscreenPass->scene->camera = smScene.getCameraInfo(probeCamera);
-		screenMat->texEmissionColor = nullptr; 
-		screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = UINT32_MAX;
-		
-		renderer.renderPass(offscreenPass);
+		//offscreenPass->scene = scene;
+		//offscreenPass->scene->camera = smScene.getCameraInfo(probeCamera);
+		//screenMat->texEmissionColor = nullptr; 
+		//screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = UINT32_MAX;
+		//
+		//renderer.renderPass(offscreenPass);
 		
 		scene->camera = mainRenderingCamera;
 

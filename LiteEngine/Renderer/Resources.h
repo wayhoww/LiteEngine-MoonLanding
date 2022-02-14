@@ -15,6 +15,11 @@
 
 namespace LiteEngine::Rendering {
 
+	namespace ShaderSemantics {
+		constexpr auto DEFAULT = "DEFAULT";
+		constexpr auto DEPTH_MAP = "DEPTH_MAP";
+	}
+
 	// 目前 buffer 全用同一套，没有区分 VS PS
 	namespace VSConstantBufferSlotID {
 		// 自定义 buffer
@@ -105,7 +110,7 @@ namespace LiteEngine::Rendering {
 			defaultShader(vertexShader, inputLayout)
 		{
 			if (depthMapVertexShader || depthMapVSInputLayout) {
-				shaders["DEPTH_MAP"] = {depthMapVertexShader, depthMapVSInputLayout};
+				shaders[ShaderSemantics::DEPTH_MAP] = {depthMapVertexShader, depthMapVSInputLayout};
 			}
 		}
 
@@ -185,8 +190,19 @@ namespace LiteEngine::Rendering {
 
 
 	struct Material {
+		PtrPixelShader defaultShader;
 		std::shared_ptr<ConstantBuffer> constants;
-		PtrPixelShader pixelShader;
+		std::unordered_map<std::string, PtrPixelShader> shaders;
+
+		virtual PtrPixelShader getShader(const std::string& semantic) const {
+			auto it = shaders.find(semantic);
+			if (it == shaders.end()) {
+				return defaultShader;
+			} else {
+				return it->second;
+			}
+		}
+
 		virtual std::vector<std::pair<Rendering::PtrShaderResourceView, uint32_t>> getShaderResourceViews() const = 0;
 		virtual std::vector<std::pair<Rendering::PtrSamplerState, uint32_t>> getSamplerStates() const = 0;
 
@@ -257,7 +273,7 @@ namespace LiteEngine::Rendering {
 		std::shared_ptr<ConstantBuffer> customVSConstantBuffer;
 		std::shared_ptr<ConstantBuffer> customPSConstantBuffer;
 
-		void updateFixedConstantBuffer(ID3D11DeviceContext* context, bool forDepthMap = false) const {
+		void updateFixedConstantBuffer(ID3D11DeviceContext* context, bool skipPS = false) const {
 			auto& val = fixedConstantBuffer->cpuData<FixedPerobjectConstantData>();
 			val.trans_L2W = this->transform;
 			auto det = DirectX::XMMatrixDeterminant(this->transform);
@@ -265,7 +281,7 @@ namespace LiteEngine::Rendering {
 
 			fixedConstantBuffer->updateBuffer(context);
 
-			if (!forDepthMap) {
+			if (!skipPS) {
 				material->updateAndBindResources(context);
 			}
 		}
@@ -286,9 +302,10 @@ namespace LiteEngine::Rendering {
 			customPSConstantBuffer(customPSConstantBuffer) {}
 
 		void draw(ID3D11DeviceContext* context, const std::string& semantic) const {
-			this->updateFixedConstantBuffer(context, false);
-
 			auto [vshader, layout] = this->mesh->getShader(semantic);
+			auto pshader = this->material == nullptr ? nullptr : this->material->getShader(semantic);
+
+			this->updateFixedConstantBuffer(context, pshader == nullptr);
 
 			// IA input assembly
 			UINT strideVertex = this->mesh->vbo->vertexStride, offsetVertex = 0;
@@ -297,19 +314,22 @@ namespace LiteEngine::Rendering {
 			context->IASetInputLayout(layout.Get());
 			context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			// VS vertex shader
+			// VS vertex shader 
 			// Qs: 什么是 class instance
 			context->VSSetShader(vshader->vertexShader.Get(), nullptr, 0);
 			context->VSSetConstantBuffers(VSConstantBufferSlotID::MESH_OBJECT_FIXED, 1, this->fixedConstantBuffer->getAddressOf());
 			if (this->customVSConstantBuffer)
 				context->VSSetConstantBuffers(VSConstantBufferSlotID::MESH_OBJECT_CUSTOM, 1, this->customVSConstantBuffer->getAddressOf());
 
-			// PS pixel shader
-			context->PSSetShader(this->material->pixelShader.Get(), nullptr, 0);
-			context->PSSetConstantBuffers(PSConstantBufferSlotID::MESH_OBJECT_FIXED, 1, this->fixedConstantBuffer->getAddressOf());
-			if (this->customPSConstantBuffer)
-				context->PSSetConstantBuffers(PSConstantBufferSlotID::MESH_OBJECT_CUSTOM, 1, this->customPSConstantBuffer->getAddressOf());
-
+			if (pshader) {
+				// PS pixel shader
+				context->PSSetShader(pshader.Get(), nullptr, 0);
+				context->PSSetConstantBuffers(PSConstantBufferSlotID::MESH_OBJECT_FIXED, 1, this->fixedConstantBuffer->getAddressOf());
+				if (this->customPSConstantBuffer)
+					context->PSSetConstantBuffers(PSConstantBufferSlotID::MESH_OBJECT_CUSTOM, 1, this->customPSConstantBuffer->getAddressOf());
+			} else {
+				context->PSSetShader(nullptr, nullptr, 0);
+			}
 			// draw
 			context->DrawIndexed(this->mesh->indicesLength, this->mesh->indicesBegin, 0);
 		}
@@ -317,6 +337,8 @@ namespace LiteEngine::Rendering {
 	};
 
 	struct DepthTextureArray {
+		uint32_t width;
+		uint32_t height;
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> textureArray;
 		std::vector<PtrDepthStencilView> depthBuffers;
 	};

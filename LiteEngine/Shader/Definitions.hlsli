@@ -10,6 +10,7 @@ static const uint LIGHT_SHADOW_HARD = 0x2;
 static const uint LIGHT_SHADOW_SOFT = 0x3;	// TODO: unimplemented
 
 #define MAX_NUMBER_OF_LIGHTS 4
+#define NUMBER_SHADOW_MAP_PER_LIGHT 3
 
 // 这些都是 custom 的 constants
 
@@ -21,5 +22,8 @@ static const uint LIGHT_SHADOW_SOFT = 0x3;	// TODO: unimplemented
 #define REGISTER_VS_LONGTERM b0
 #define REGISTER_VS_PERFRAME b1
 #define REGISTER_VS_PEROBJECT b2
+
+#define REGISTER_PS_CSM_TEXTURE t15
+#define REGISTER_PS_CSM_SAMPLER s15
 
 #endif

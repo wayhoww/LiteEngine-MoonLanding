@@ -34,6 +34,14 @@ cbuffer FixedPerframePSConstantBufferData : register(b4) {
 	uint numberOfLights; // space of 4bytes.
 
 	Light lights[MAX_NUMBER_OF_LIGHTS];
+
+	float CSMZList[NUMBER_SHADOW_MAP_PER_LIGHT + 1];	// 4 floats
+
+	// order: light0: map0 map1 map2; light1: map0 map1 map2, ...
+	uint CSMValid[MAX_NUMBER_OF_LIGHTS] [NUMBER_SHADOW_MAP_PER_LIGHT] ;	// 12 uint
+
+	// 4 3
+	matrix trans_W2CSM[MAX_NUMBER_OF_LIGHTS] [NUMBER_SHADOW_MAP_PER_LIGHT] ;
 };
 
 cbuffer FixedPerobjectPSConstants : register(b5) {

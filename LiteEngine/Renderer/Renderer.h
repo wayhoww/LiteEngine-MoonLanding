@@ -13,6 +13,7 @@
 namespace LiteEngine::Rendering {
 
 	constexpr uint32_t MAX_NUMBER_OF_LIGHTS = 4;
+	constexpr uint32_t NUMBER_SHADOW_MAP_PER_LIGHT = 3;
 
 	namespace LightType {
 		constexpr uint32_t LIGHT_TYPE_POINT = 0x0;
@@ -24,6 +25,14 @@ namespace LiteEngine::Rendering {
 		constexpr uint32_t LIGHT_SHADOW_EMPTY = 0x1;
 		constexpr uint32_t LIGHT_SHADOW_HARD = 0x2;
 		constexpr uint32_t LIGHT_SHADOW_SOFT = 0x3;	// TODO: unimplemented
+	}
+
+	namespace TextureSlots {
+		constexpr uint32_t CSM_DEPTH_MAP = 15;
+	}
+
+	namespace SamplerSlots {
+		constexpr uint32_t CSM_DEPTH_MAP = 15;
 	}
 
 
@@ -71,6 +80,13 @@ namespace LiteEngine::Rendering {
 			float nearZ;
 			float farZ;
 
+			DirectX::XMMATRIX getV2CMatrix() const {
+				if (projectionType == RenderingScene::CameraInfo::ProjectionType::PERSPECTIVE) {
+					return DirectX::XMMatrixPerspectiveFovLH(fieldOfViewYRadian, aspectRatio, nearZ, farZ);
+				}else {
+					return DirectX::XMMatrixOrthographicLH(viewWidth, viewHeight, nearZ, farZ);
+				}
+			}
 		};
 
 		CameraInfo camera;
@@ -103,6 +119,13 @@ namespace LiteEngine::Rendering {
 		uint32_t numberOfLights;
 
 		LightDesc lights[MAX_NUMBER_OF_LIGHTS];
+
+		float CSMZList[NUMBER_SHADOW_MAP_PER_LIGHT + 1][4];	// 1 2 3 are discarded..
+
+		// order: light0: map0 map1 map2; light1: map0 map1 map2, ...
+		uint32_t CSMValid[MAX_NUMBER_OF_LIGHTS][NUMBER_SHADOW_MAP_PER_LIGHT][4] = {};	// 1 2 3 are discarded..
+
+		DirectX::XMMATRIX trans_W2CMS[MAX_NUMBER_OF_LIGHTS][NUMBER_SHADOW_MAP_PER_LIGHT];
 	};
 
 	struct alignas(16) FixedLongtermConstantBufferData {
@@ -112,8 +135,6 @@ namespace LiteEngine::Rendering {
 		char _space[4];
 	};
 
-	// TODO COM 内存泄漏检测
-
 	struct RenderingPass {
 		std::shared_ptr<RenderingScene> scene;
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
@@ -121,18 +142,21 @@ namespace LiteEngine::Rendering {
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizerState;
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
 
+		std::shared_ptr<DepthTextureArray> CSMDepthMapArray;
+		Microsoft::WRL::ComPtr<ID3D11SamplerState> CSMDepthMapSampler;
+
 		bool clearDepth = true;
 		bool clearStencil = true;
 		float depthValue = 1;
 		int stencilValue = 0;
 
 		bool clearColor = false;
-		DirectX::XMFLOAT4 colorValue;
+		DirectX::XMFLOAT4 colorValue{0, 0, 0, 0};
 
 		D3D11_VIEWPORT viewport;
 
-		std::string vsSemantic = "DEFAULT";
-		std::string psSemantic = "DEFAULT";
+		std::string vsSemantic = ShaderSemantics::DEFAULT;
+		std::string psSemantic = ShaderSemantics::DEFAULT;
 	};
 
 
@@ -140,19 +164,52 @@ namespace LiteEngine::Rendering {
 	class Renderer {
 
 	public:
-		std::shared_ptr<RenderingPass> createDepthMapPass(uint32_t count) {
-			
+		std::shared_ptr<RenderingPass> createDepthMapPass(
+			std::shared_ptr<RenderingScene> scene,
+			PtrDepthStencilView depthView,
+			uint32_t width,
+			uint32_t height
+		) {
+			static auto pass = this->createRenderingPassWithoutSceneAndTarget(
+				[]() {
+				CD3D11_RASTERIZER_DESC desc{CD3D11_DEFAULT()};
+				desc.CullMode = D3D11_CULL_NONE; // todo changeit
+				return desc;
+			}(), CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT()));
+
+			pass->scene = scene;
+			pass->renderTargetView = nullptr;
+			pass->depthStencilView = depthView;
+			pass->clearDepth = true;
+			pass->clearStencil = false;
+
+			D3D11_VIEWPORT viewport = {};
+			viewport.Width = (float)width;
+			viewport.Height = (float)height;
+			viewport.MaxDepth = 1;
+			viewport.MinDepth = 0;
+			pass->viewport = viewport;
+
+			pass->vsSemantic = ShaderSemantics::DEPTH_MAP;
+
+			return pass;
 		}
 
-		std::shared_ptr<DepthTextureArray> createDepthTextureArray(uint32_t count) {
+		std::shared_ptr<DepthTextureArray> createDepthTextureArray(uint32_t count, uint32_t width, uint32_t height) {
 			std::shared_ptr<DepthTextureArray> out(new DepthTextureArray());
 			out->depthBuffers.resize(count);
+			out->width = width;
+			out->height = height;
 
-			constexpr auto DXGI_FORMAT = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+			constexpr auto DXGI_FORMAT_RESOURCE = DXGI_FORMAT_R24G8_TYPELESS;
+			constexpr auto DXGI_FORMAT_DEPTH_STENCIL = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			constexpr auto DXGI_FORMAT_SHADER_RESOURCE = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+			constexpr uint32_t mipLevels = 1;
+
 			ID3D11Texture2D* depthStencilBuffer;
 			CD3D11_TEXTURE2D_DESC depthStencilTextureDesc(
-				DXGI_FORMAT, width, height, 
-				count, 0, D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE
+				DXGI_FORMAT_RESOURCE, width, height, 
+				count, mipLevels, D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE
 			);
 
 			device->CreateTexture2D(&depthStencilTextureDesc, nullptr, &depthStencilBuffer);
@@ -160,14 +217,14 @@ namespace LiteEngine::Rendering {
 			for (uint32_t i = 0; i < count; i++) {
 				CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(
 					D3D11_DSV_DIMENSION_TEXTURE2DARRAY,
-					DXGI_FORMAT, 0, i, 1
+					DXGI_FORMAT_DEPTH_STENCIL, 0, i, 1
 				);
 				device->CreateDepthStencilView(depthStencilBuffer, &depthStencilViewDesc, &out->depthBuffers[i]);
 			}
 
 			CD3D11_SHADER_RESOURCE_VIEW_DESC shaderResouceViewDesc {
 				D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
-				DXGI_FORMAT, 0, 0, 0, count 
+				DXGI_FORMAT_SHADER_RESOURCE, 0, mipLevels, 0, count 
 			};
 
 			device->CreateShaderResourceView(depthStencilBuffer, 
@@ -218,9 +275,9 @@ namespace LiteEngine::Rendering {
 			return view;
 		}
 
-		Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
 	protected:
 
+		Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
 
 		Microsoft::WRL::ComPtr<ID3D11Device> device;
 		Microsoft::WRL::ComPtr<IDXGISwapChain> swapChain;
@@ -236,6 +293,8 @@ namespace LiteEngine::Rendering {
 		std::shared_ptr<ConstantBuffer> customLongtermVSConstantBuffer;
 		std::shared_ptr<ConstantBuffer> customLongtermPSConstantBuffer;
 
+		std::shared_ptr<DepthTextureArray> shadowDepthBuffer = nullptr;
+
 		uint32_t width = 0, height = 0;
 
 		int64_t time_in_ticks = 0;
@@ -243,6 +302,7 @@ namespace LiteEngine::Rendering {
 		double currentFPS = -1;
 		double averageFPS = -1;
 		double desiredFPS = 0;
+
 
 		uint64_t id = 0;
 
@@ -259,16 +319,11 @@ namespace LiteEngine::Rendering {
 			{
 				// perframe vs
 				auto ar = camera.aspectRatio;
-				if (autoAdjustAspectRatio) ar = float(1.0 * this->width / this->height);
 				auto& data = this->fixedPerframeVSConstantBuffer->cpuData<FixedPerframeVSConstantBufferData>();
 				data.trans_W2V = camera.trans_W2V;
 				data.trans_V2W = trans_V2W;
-
-				if (camera.projectionType == RenderingScene::CameraInfo::ProjectionType::PERSPECTIVE) {
-					data.trans_V2C = DirectX::XMMatrixPerspectiveFovLH(camera.fieldOfViewYRadian, ar, camera.nearZ, camera.farZ);
-				}else {
-					data.trans_V2C = DirectX::XMMatrixOrthographicLH(camera.viewWidth, camera.viewHeight, camera.nearZ, camera.farZ);
-				}
+			
+				data.trans_V2C = camera.getV2CMatrix();
 
 				data.trans_W2C = DirectX::XMMatrixMultiply(data.trans_W2V, data.trans_V2C);
 				data.timeInSecond = timeInSecond;
@@ -319,7 +374,6 @@ namespace LiteEngine::Rendering {
 		void operator=(const Renderer&) = delete;
 
 		bool autoAdjustSize = false;
-		bool autoAdjustAspectRatio = false;
 		float exposure = 1.0;
 
 
@@ -379,6 +433,7 @@ namespace LiteEngine::Rendering {
 			frameBuffer->Release();
 			
 			this->recreateDepthStencilView();
+			this->recreateShadowDepthBuffer();
 
 			this->fixedPerframeVSConstantBuffer = this->createConstantBuffer(FixedPerframeVSConstantBufferData());
 			this->fixedPerframePSConstantBuffer = this->createConstantBuffer(FixedPerframePSConstantBufferData());
@@ -430,6 +485,7 @@ namespace LiteEngine::Rendering {
 			frameBuffer->Release();
 			
 			this->recreateDepthStencilView();
+			this->recreateShadowDepthBuffer();
 		}
 
 		// 第一次调用需要传递 hwnd 参数，之后调用
@@ -683,6 +739,8 @@ namespace LiteEngine::Rendering {
 				this->currentFPS = 1.0 / elapsedTicks * this->timer_frequency;
 				this->averageFPS = this->averageFPS * 0.95 + this->currentFPS * (1 - 0.95);
 			}
+
+			this->clearShaderResourcesAndSamplers();
 		}
 
 
@@ -692,6 +750,7 @@ namespace LiteEngine::Rendering {
 			if (pass->clearColor) {
 				context->ClearRenderTargetView(pass->renderTargetView.Get(), reinterpret_cast<float*>(&pass->colorValue));
 			}
+
 			D3D11_CLEAR_FLAG clearFlag = D3D11_CLEAR_FLAG(0);
 			if (pass->clearDepth) clearFlag = D3D11_CLEAR_FLAG(clearFlag | D3D11_CLEAR_DEPTH);
 			if (pass->clearStencil) clearFlag = D3D11_CLEAR_FLAG(clearFlag | D3D11_CLEAR_STENCIL);
@@ -701,6 +760,12 @@ namespace LiteEngine::Rendering {
 			}
 
 			this->updateFixedPerframeConstantBuffers(*pass->scene);
+
+			if (pass->CSMDepthMapArray) {
+				context->PSSetShaderResources(TextureSlots::CSM_DEPTH_MAP, 1, pass->CSMDepthMapArray->textureArray.GetAddressOf());
+				context->PSSetSamplers(SamplerSlots::CSM_DEPTH_MAP, 1, pass->CSMDepthMapSampler.GetAddressOf());
+			}
+
 
 			context->OMSetRenderTargets(1, pass->renderTargetView.GetAddressOf(), pass->depthStencilView.Get());
 			context->OMSetDepthStencilState(pass->depthStencilState.Get(), 1);
@@ -712,12 +777,30 @@ namespace LiteEngine::Rendering {
 			for (auto obj : pass->scene->meshObjects) {
 				obj->draw(this->context.Get(), pass->vsSemantic);
 			}
+
+			this->clearShaderResourcesAndSamplers();
+
 		}
 
-		void renderScene(std::shared_ptr<RenderingScene> scene) {
-			auto pass = this->createDefaultRenderingPass(scene);
-			this->renderPass(pass);
+	protected:
+		void clearShaderResourcesAndSamplers() {
+			static ID3D11ShaderResourceView* nullViews[16] = {};
+			static ID3D11SamplerState* nullSamplers[16] = {};
+			context->PSSetShaderResources(0, 16, nullViews);
+			context->PSSetSamplers(0, 16, nullSamplers);
 		}
+
+		float shadowWidth, shadowHeight;
+		void recreateShadowDepthBuffer() {
+			this->shadowWidth = (float)this->width;
+			this->shadowHeight = (float)this->height;	
+			this->shadowDepthBuffer = this->createDepthTextureArray(MAX_NUMBER_OF_LIGHTS * NUMBER_SHADOW_MAP_PER_LIGHT, this->shadowWidth, this->shadowHeight);
+		}
+	public:
+		void renderScene(
+			std::shared_ptr<RenderingScene> scene,
+			bool renderShadow = true
+		);
 
 		void renderSkybox(
 			PtrShaderResourceView& skyboxTexture,

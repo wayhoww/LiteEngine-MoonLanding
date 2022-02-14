@@ -9,7 +9,8 @@ struct Default_VS_OUTPUT {
 	// (x in [0, W), y in [0, H), z in [0, 1], w = view space depth)
 	float4 position_SV      : SV_POSITION;
 
-	float3 position_W       : POSITION;
+	float3 position_W       : POSITION_W;
+	float4 position_V       : POSITION_V;
 	float3 normal_W 		: NORMAL;		// TODO 这个矫正咋做。。还没弄
 	float3 tangent_W	    : TANGENT;
 	float2 texCoord0		: TEXCOORD0;

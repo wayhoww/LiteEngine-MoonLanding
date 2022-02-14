@@ -72,7 +72,8 @@ namespace LiteEngine::SceneManagement {
 			static auto shader = Rendering::Renderer::getInstance().createPixelShader(
 				loadBinaryFromFile(L"DefaultPS.cso")
 			);
-			this->pixelShader = shader;
+			this->defaultShader = shader;
+			this->shaders[Rendering::ShaderSemantics::DEPTH_MAP] = nullptr;
 		}
 
 		Rendering::PtrSamplerState sampBaseColor;

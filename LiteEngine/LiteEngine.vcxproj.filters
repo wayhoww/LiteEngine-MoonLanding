@@ -89,5 +89,6 @@
     <FxCompile Include="Shader\DefaultShader\DefaultVS.hlsl" />
     <FxCompile Include="Shader\SkyboxShader\SkyboxVS.hlsl" />
     <FxCompile Include="Shader\SkyboxShader\SkyboxPS.hlsl" />
+    <FxCompile Include="Shader\DefaultShader\DefaultVSDepthMap.hlsl" />
   </ItemGroup>
 </Project>
