@@ -130,6 +130,9 @@ namespace LiteEngine::Rendering {
 		DirectX::XMFLOAT4 colorValue;
 
 		D3D11_VIEWPORT viewport;
+
+		std::string vsSemantic = "DEFAULT";
+		std::string psSemantic = "DEFAULT";
 	};
 
 
@@ -707,7 +710,7 @@ namespace LiteEngine::Rendering {
 			this->setConstantBuffers();
 
 			for (auto obj : pass->scene->meshObjects) {
-				obj->draw(this->context.Get());
+				obj->draw(this->context.Get(), pass->vsSemantic);
 			}
 		}
 

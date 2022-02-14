@@ -84,13 +84,11 @@ namespace LiteEngine::Rendering {
 		PtrIndexBufferObject indices;
 		uint32_t indicesBegin;
 		uint32_t indicesLength;
-
-		std::shared_ptr<VertexShader> vertexShader;
-		std::shared_ptr<VertexShader> depthMapVertexShader;
-
-		PtrInputLayout inputLayout;
-		PtrInputLayout depthMapVSInputLayout;
-
+	protected:
+		std::unordered_map<std::string, std::pair<std::shared_ptr<VertexShader>, PtrInputLayout>> shaders;
+		// "DEFAULT"
+	public:
+		std::pair<std::shared_ptr<VertexShader>, PtrInputLayout> defaultShader;
 		Mesh(
 			std::shared_ptr<VertexBufferObject> vbo, 
 			PtrIndexBufferObject indices, 
@@ -104,10 +102,23 @@ namespace LiteEngine::Rendering {
 			PtrInputLayout depthMapVSInputLayout
 		): vbo(vbo), indices(indices), indicesBegin(indicesBegin), 
 			indicesLength(indicesLength),
-			vertexShader(vertexShader), inputLayout(inputLayout),
-			depthMapVertexShader(depthMapVertexShader), 
-			depthMapVSInputLayout(depthMapVSInputLayout)
-		{}
+			defaultShader(vertexShader, inputLayout)
+		{
+			if (depthMapVertexShader || depthMapVSInputLayout) {
+				shaders["DEPTH_MAP"] = {depthMapVertexShader, depthMapVSInputLayout};
+			}
+		}
+
+		
+		std::pair<std::shared_ptr<VertexShader>, PtrInputLayout> getShader(const std::string& semantic) {
+			auto it = shaders.find(semantic);
+			if (it == shaders.end()) {
+				return this->defaultShader;
+			} else {
+				return it->second;
+			}
+		}
+
 	};
 
 	// Constant Buffer 用固定的 slot，shader resource 和 sampler 用不固定的 slot
@@ -274,19 +285,21 @@ namespace LiteEngine::Rendering {
 			customVSConstantBuffer(customVSConstantBuffer),
 			customPSConstantBuffer(customPSConstantBuffer) {}
 
-		void draw(ID3D11DeviceContext* context) const {
+		void draw(ID3D11DeviceContext* context, const std::string& semantic) const {
 			this->updateFixedConstantBuffer(context, false);
+
+			auto [vshader, layout] = this->mesh->getShader(semantic);
 
 			// IA input assembly
 			UINT strideVertex = this->mesh->vbo->vertexStride, offsetVertex = 0;
 			context->IASetVertexBuffers(0, 1, this->mesh->vbo->vertices.GetAddressOf(), &strideVertex, &offsetVertex);
 			context->IASetIndexBuffer(this->mesh->indices.Get(), DXGI_FORMAT_R32_UINT, 0);
-			context->IASetInputLayout(this->mesh->inputLayout.Get());
+			context->IASetInputLayout(layout.Get());
 			context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			// VS vertex shader
 			// Qs: 什么是 class instance
-			context->VSSetShader(this->mesh->vertexShader->vertexShader.Get(), nullptr, 0);
+			context->VSSetShader(vshader->vertexShader.Get(), nullptr, 0);
 			context->VSSetConstantBuffers(VSConstantBufferSlotID::MESH_OBJECT_FIXED, 1, this->fixedConstantBuffer->getAddressOf());
 			if (this->customVSConstantBuffer)
 				context->VSSetConstantBuffers(VSConstantBufferSlotID::MESH_OBJECT_CUSTOM, 1, this->customVSConstantBuffer->getAddressOf());
