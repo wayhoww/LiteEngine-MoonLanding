@@ -435,16 +435,20 @@ namespace LiteEngine::Rendering {
 		static HWND getHandle();
 
 		// 资源创建过程都不加 const，方便以后记录状态。。
-		std::shared_ptr<Shader> createShader(
-			const std::vector<uint8_t>& vertexShaderByteCode,
-			const std::vector<uint8_t>& pixelShaderByteCode
+		std::shared_ptr<VertexShader> createVertexShader(
+			const std::vector<uint8_t>& vertexShaderByteCode
 		) {
 			ID3D11VertexShader* vShader;
-			ID3D11PixelShader* pShader;
 			device->CreateVertexShader(vertexShaderByteCode.data(), vertexShaderByteCode.size(), nullptr, &vShader);
-			device->CreatePixelShader(pixelShaderByteCode.data(), pixelShaderByteCode.size(), nullptr, &pShader);
+			return std::shared_ptr<VertexShader>(new VertexShader(vShader, vertexShaderByteCode));
+		}
 
-			return std::shared_ptr<Shader>(new Shader(vShader, pShader, vertexShaderByteCode));
+		PtrPixelShader createPixelShader(
+			const std::vector<uint8_t>& pixelShaderByteCode
+		) {
+			PtrPixelShader out;
+			device->CreatePixelShader(pixelShaderByteCode.data(), pixelShaderByteCode.size(), nullptr, &out);
+			return out;
 		}
 
 		// IndexBufferObject
@@ -500,27 +504,47 @@ namespace LiteEngine::Rendering {
 
 		std::shared_ptr<Mesh> createMesh(
 			std::shared_ptr<VertexBufferObject> vbo,
-			const uint32_t* indices, uint32_t lengthOfIndices
+			const uint32_t* indices, uint32_t lengthOfIndices,
+			std::shared_ptr<VertexShader> vshader,
+			PtrInputLayout inputLayout,
+			std::shared_ptr<VertexShader> depthMapShader,
+			PtrInputLayout depthMapInputLayout
 		) {
 			auto ido = this->createIndexBufferObject(indices, lengthOfIndices);
 			
-			return std::shared_ptr<Mesh>(new Mesh(vbo, ido, 0, lengthOfIndices));
+			return std::shared_ptr<Mesh>(new Mesh(
+				vbo, ido, 0, lengthOfIndices,
+				vshader, inputLayout, depthMapShader, depthMapInputLayout
+			));
 		}
 
 		std::shared_ptr<Mesh> createMesh(
 			std::shared_ptr<VertexBufferObject> vbo,
-			const std::vector<uint32_t>& indices
+			const std::vector<uint32_t>& indices,
+			std::shared_ptr<VertexShader> vshader,
+			PtrInputLayout inputLayout,
+			std::shared_ptr<VertexShader> depthMapShader,
+			PtrInputLayout depthMapInputLayout
 		) {
-			return createMesh(vbo, indices.data(), (uint32_t)indices.size());
+			return createMesh(vbo, indices.data(), (uint32_t)indices.size(), 
+				vshader, inputLayout, depthMapShader, depthMapInputLayout);
 		}
 
 		std::shared_ptr<Mesh> createMesh(
 			std::shared_ptr<VertexBufferObject> vbo,
 			PtrIndexBufferObject ibo,
 			uint32_t start,
-			uint32_t count
+			uint32_t count,
+			std::shared_ptr<VertexShader> vshader,
+			PtrInputLayout inputLayout,
+			std::shared_ptr<VertexShader> depthMapShader,
+			PtrInputLayout depthMapInputLayout
 		) {
-			return std::shared_ptr<Mesh>(new Mesh(vbo, ibo, start, count));
+			return std::shared_ptr<Mesh>(
+				new Mesh(vbo, ibo, start, count,
+					vshader, inputLayout,
+					depthMapShader, depthMapInputLayout)
+			);
 		}
 
 		PtrSamplerState createSamplerState(D3D11_SAMPLER_DESC desc) {
@@ -611,7 +635,7 @@ namespace LiteEngine::Rendering {
 		PtrShaderResourceView createSimpleTexture2DFromWIC(const uint8_t* memory, size_t size);
 		PtrShaderResourceView createCubeMapFromDDS(const std::wstring& file);
 
-		PtrInputLayout createInputLayout(std::shared_ptr<InputElementDescriptions> desc, std::shared_ptr<Shader> shader) {
+		PtrInputLayout createInputLayout(std::shared_ptr<InputElementDescriptions> desc, std::shared_ptr<VertexShader> shader) {
 			// TODO cache.
 			PtrInputLayout out;
 			device->CreateInputLayout(desc->data(), (uint32_t)desc->size(),
@@ -622,13 +646,12 @@ namespace LiteEngine::Rendering {
 		std::shared_ptr<MeshObject> createMeshObject(
 			std::shared_ptr<Mesh> mesh,
 			std::shared_ptr<Material> material,
-			PtrInputLayout inputLayout,
 			std::shared_ptr<ConstantBuffer> customConstantBuffer = nullptr
 		) {
 			static auto fixedConstantBuffer = this->createConstantBuffer(FixedPerobjectConstantData());
 			
-			return std::shared_ptr<MeshObject>(new MeshObject(mesh, material,
-				inputLayout, fixedConstantBuffer->getSharedInstance(), customConstantBuffer));
+			return std::shared_ptr<MeshObject>(new MeshObject(mesh, material, 
+				fixedConstantBuffer->getSharedInstance(), customConstantBuffer));
 		}
 
 		double getCurrentFPS() const {

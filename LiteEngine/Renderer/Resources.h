@@ -61,53 +61,53 @@ namespace LiteEngine::Rendering {
 
 	using PtrIndexBufferObject = Microsoft::WRL::ComPtr<ID3D11Buffer>;
 
+	struct VertexShader {
+
+		std::vector<uint8_t> vertexShaderByteCode;
+		Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
+
+		VertexShader(
+			ID3D11VertexShader* vertexShader,
+			std::vector<uint8_t> vertexShaderByteCode
+		) : vertexShaderByteCode(vertexShaderByteCode) {
+			this->vertexShader.Attach(vertexShader);
+		}
+	};
+
+
+	using PtrPixelShader = Microsoft::WRL::ComPtr<ID3D11PixelShader>;
+
+	using PtrInputLayout = Microsoft::WRL::ComPtr<ID3D11InputLayout>;
+
 	struct Mesh {
 		std::shared_ptr<VertexBufferObject> vbo;
 		PtrIndexBufferObject indices;
 		uint32_t indicesBegin;
 		uint32_t indicesLength;
 
+		std::shared_ptr<VertexShader> vertexShader;
+		std::shared_ptr<VertexShader> depthMapVertexShader;
+
+		PtrInputLayout inputLayout;
+		PtrInputLayout depthMapVSInputLayout;
+
 		Mesh(
 			std::shared_ptr<VertexBufferObject> vbo, 
 			PtrIndexBufferObject indices, 
 			uint32_t indicesBegin, 
-			uint32_t indicesLength
-		) {
-			this->vbo = vbo;
-			this->indices = indices;
-			this->indicesBegin = indicesBegin;
-			this->indicesLength = indicesLength;
-		}
-	};
+			uint32_t indicesLength,
 
-	struct Shader {
+			std::shared_ptr<VertexShader> vertexShader,
+			PtrInputLayout inputLayout,
 
-		std::vector<uint8_t> vertexShaderByteCode;
-		Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
-		Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
-
-		Shader(
-			ID3D11VertexShader* vertexShader,
-			ID3D11PixelShader* pixelShader,
-			std::vector<uint8_t> vertexShaderByteCode
-		) : vertexShaderByteCode(vertexShaderByteCode) {
-
-			this->vertexShader.Attach(vertexShader);
-			this->pixelShader.Attach(pixelShader);
-
-			this->setVertexShaderID();
-		}
-
-	protected:
-
-		uint64_t vertexShaderID;
-
-		void setVertexShaderID() {
-			// 先简单处理了。。
-			static std::atomic_uint64_t idCounter = 0;
-			this->vertexShaderID = idCounter++;
-		}
-
+			std::shared_ptr<VertexShader> depthMapVertexShader,
+			PtrInputLayout depthMapVSInputLayout
+		): vbo(vbo), indices(indices), indicesBegin(indicesBegin), 
+			indicesLength(indicesLength),
+			vertexShader(vertexShader), inputLayout(inputLayout),
+			depthMapVertexShader(depthMapVertexShader), 
+			depthMapVSInputLayout(depthMapVSInputLayout)
+		{}
 	};
 
 	// Constant Buffer 用固定的 slot，shader resource 和 sampler 用不固定的 slot
@@ -175,7 +175,7 @@ namespace LiteEngine::Rendering {
 
 	struct Material {
 		std::shared_ptr<ConstantBuffer> constants;
-		std::shared_ptr<Shader> shader;
+		PtrPixelShader pixelShader;
 		virtual std::vector<std::pair<Rendering::PtrShaderResourceView, uint32_t>> getShaderResourceViews() const = 0;
 		virtual std::vector<std::pair<Rendering::PtrSamplerState, uint32_t>> getSamplerStates() const = 0;
 
@@ -218,7 +218,6 @@ namespace LiteEngine::Rendering {
 
 	};
 
-	using PtrInputLayout = Microsoft::WRL::ComPtr<ID3D11InputLayout>;
 
 	// L: local
 	// W: world
@@ -240,8 +239,6 @@ namespace LiteEngine::Rendering {
 		std::shared_ptr<Mesh> mesh;
 		// 如果 Mesh 的布局 和 Shader 不匹配，那么创建 InputLayout 的时候应该就会报错吧？
 
-		PtrInputLayout inputLayout;
-
 		// fixedConstant: VS PS 共享
 		std::shared_ptr<ConstantBuffer> fixedConstantBuffer;
 
@@ -249,7 +246,7 @@ namespace LiteEngine::Rendering {
 		std::shared_ptr<ConstantBuffer> customVSConstantBuffer;
 		std::shared_ptr<ConstantBuffer> customPSConstantBuffer;
 
-		void updateFixedConstantBuffer(ID3D11DeviceContext* context, bool vsOnly = false) const {
+		void updateFixedConstantBuffer(ID3D11DeviceContext* context, bool forDepthMap = false) const {
 			auto& val = fixedConstantBuffer->cpuData<FixedPerobjectConstantData>();
 			val.trans_L2W = this->transform;
 			auto det = DirectX::XMMatrixDeterminant(this->transform);
@@ -257,7 +254,7 @@ namespace LiteEngine::Rendering {
 
 			fixedConstantBuffer->updateBuffer(context);
 
-			if (!vsOnly) {
+			if (!forDepthMap) {
 				material->updateAndBindResources(context);
 			}
 		}
@@ -269,39 +266,36 @@ namespace LiteEngine::Rendering {
 		MeshObject(
 			std::shared_ptr<Mesh> mesh,
 			std::shared_ptr<Material> material,
-			PtrInputLayout inputLayout,
 			std::shared_ptr<ConstantBuffer> fixedConstantBuffer,
 			std::shared_ptr<ConstantBuffer> customVSConstantBuffer = nullptr,
 			std::shared_ptr<ConstantBuffer> customPSConstantBuffer = nullptr
-		) : mesh(mesh), material(material), inputLayout(inputLayout),
+		) : mesh(mesh), material(material), 
 			fixedConstantBuffer(fixedConstantBuffer),
 			customVSConstantBuffer(customVSConstantBuffer),
 			customPSConstantBuffer(customPSConstantBuffer) {}
 
-		void draw(ID3D11DeviceContext* context, bool vsOnly = false) const {
-			this->updateFixedConstantBuffer(context, vsOnly);
+		void draw(ID3D11DeviceContext* context) const {
+			this->updateFixedConstantBuffer(context, false);
 
 			// IA input assembly
 			UINT strideVertex = this->mesh->vbo->vertexStride, offsetVertex = 0;
 			context->IASetVertexBuffers(0, 1, this->mesh->vbo->vertices.GetAddressOf(), &strideVertex, &offsetVertex);
 			context->IASetIndexBuffer(this->mesh->indices.Get(), DXGI_FORMAT_R32_UINT, 0);
-			context->IASetInputLayout(this->inputLayout.Get());
+			context->IASetInputLayout(this->mesh->inputLayout.Get());
 			context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			// VS vertex shader
 			// Qs: 什么是 class instance
-			context->VSSetShader(this->material->shader->vertexShader.Get(), nullptr, 0);
+			context->VSSetShader(this->mesh->vertexShader->vertexShader.Get(), nullptr, 0);
 			context->VSSetConstantBuffers(VSConstantBufferSlotID::MESH_OBJECT_FIXED, 1, this->fixedConstantBuffer->getAddressOf());
 			if (this->customVSConstantBuffer)
 				context->VSSetConstantBuffers(VSConstantBufferSlotID::MESH_OBJECT_CUSTOM, 1, this->customVSConstantBuffer->getAddressOf());
 
-			if (!vsOnly) {
-				// PS pixel shader
-				context->PSSetShader(this->material->shader->pixelShader.Get(), nullptr, 0);
-				context->PSSetConstantBuffers(PSConstantBufferSlotID::MESH_OBJECT_FIXED, 1, this->fixedConstantBuffer->getAddressOf());
-				if (this->customPSConstantBuffer)
-					context->PSSetConstantBuffers(PSConstantBufferSlotID::MESH_OBJECT_CUSTOM, 1, this->customPSConstantBuffer->getAddressOf());
-			}
+			// PS pixel shader
+			context->PSSetShader(this->material->pixelShader.Get(), nullptr, 0);
+			context->PSSetConstantBuffers(PSConstantBufferSlotID::MESH_OBJECT_FIXED, 1, this->fixedConstantBuffer->getAddressOf());
+			if (this->customPSConstantBuffer)
+				context->PSSetConstantBuffers(PSConstantBufferSlotID::MESH_OBJECT_CUSTOM, 1, this->customPSConstantBuffer->getAddressOf());
 
 			// draw
 			context->DrawIndexed(this->mesh->indicesLength, this->mesh->indicesBegin, 0);

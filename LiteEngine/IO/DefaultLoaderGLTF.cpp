@@ -459,8 +459,7 @@ namespace LiteEngine::IO {
     ) {
         auto& renderer = Rendering::Renderer::getInstance();
         SceneManagement::DefaultMaterialConstantData constants;
-        static auto sConstantBuffer = renderer.createConstantBuffer(constants);
-
+        
         std::shared_ptr<SceneManagement::DefaultMaterial> out(new SceneManagement::DefaultMaterial());
 
         constants.baseColor = DirectX::XMFLOAT4{
@@ -522,7 +521,7 @@ namespace LiteEngine::IO {
         out->sampNormal = renderer.createSamplerState(desc);
         out->sampRoughness = renderer.createSamplerState(desc);
 
-        
+        static auto sConstantBuffer = renderer.createConstantBuffer(constants);
         out->constants = sConstantBuffer->getSharedInstance();
         out->constants->cpuData<decltype(constants)>() = constants;
 
@@ -639,10 +638,8 @@ namespace LiteEngine::IO {
                 meshObj->data = renderer.createMeshObject(
                     mesh,
                     std::shared_ptr<Rendering::Material>(new SceneManagement::DefaultMaterial()),
-                    meshObj->material->getInputLayout(),
                     nullptr
-                );;
-
+                );
 
                 meshObj->transT = DirectX::XMFLOAT3{ 0, 0, 0 };
                 meshObj->transR = DirectX::XMVECTOR{ 0, 0, 0, 1 };
@@ -779,11 +776,19 @@ namespace LiteEngine::IO {
         auto ido = renderer.createIndexBufferObject(indices);
 
         auto vbo = renderer.createVertexBufferObject(vboData, SceneManagement::DefaultVertexData::getDescription());
+
+        static auto shader = Rendering::Renderer::getInstance().createVertexShader(
+            loadBinaryFromFile(L"DefaultVS.cso")
+        );
+
+        static auto inputLayout = renderer.createInputLayout(SceneManagement::DefaultVertexData::getDescription(), shader);
+
+        
         for (auto meshGroup : meshIn) {
             meshes.push_back({});
             for (auto mesh : meshGroup) {
                 meshes.rbegin()->push_back({ 
-                    renderer.createMesh(vbo, ido, mesh.indexBegin, mesh.indexLength), 
+                    renderer.createMesh(vbo, ido, mesh.indexBegin, mesh.indexLength, shader, inputLayout, nullptr, nullptr), 
                     mesh.materialID, 
                     mesh.name 
                 });

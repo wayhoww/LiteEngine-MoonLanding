@@ -69,12 +69,10 @@ namespace LiteEngine::SceneManagement {
 
 	struct DefaultMaterial : public Material {
 		DefaultMaterial() {
-			auto& renderer = Rendering::Renderer::getInstance();
-			static std::shared_ptr<Rendering::Shader> shader(renderer.createShader(
-				loadBinaryFromFile(L"DefaultVS.cso"),
+			static auto shader = Rendering::Renderer::getInstance().createPixelShader(
 				loadBinaryFromFile(L"DefaultPS.cso")
-			));
-			this->shader = shader;
+			);
+			this->pixelShader = shader;
 		}
 
 		Rendering::PtrSamplerState sampBaseColor;
@@ -112,13 +110,5 @@ namespace LiteEngine::SceneManagement {
 				{ sampNormal, (uint32_t)DefaultShaderSlot::NORMAL }
 			};
 		}
-
-		virtual Rendering::PtrInputLayout getInputLayout() const {
-			auto& renderer = Rendering::Renderer::getInstance();
-			static Rendering::PtrInputLayout sLayout(
-				renderer.createInputLayout(DefaultVertexData::getDescription(), this->shader));
-			return sLayout;
-		}
-
 	};
 }

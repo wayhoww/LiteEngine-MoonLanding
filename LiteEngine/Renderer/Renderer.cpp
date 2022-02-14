@@ -39,21 +39,22 @@ namespace LiteEngine::Rendering {
 			);
 
 		auto vbo = renderer.createVertexBufferObject(cubeVertices, 8, 3 * sizeof(float), desc);
+		auto vshader = renderer.createVertexShader(loadBinaryFromFile(L"SkyboxVS.cso"));
+		auto mesh = renderer.createMesh(
+			vbo, {
+				0, 4, 2, 3, 2, 7, 7, 6, 5, 5, 1, 7, 1, 0, 3, 5, 4, 1, 
+				2, 4, 6, 7, 2, 6, 5, 6, 4, 7, 1, 3, 3, 0, 2, 1, 4, 0 },
+			vshader, renderer.createInputLayout(desc, vshader),
+			nullptr, nullptr
+		);
 
-		auto mesh = renderer.createMesh(vbo, {
-			0, 4, 2, 3, 2, 7, 7, 6, 5, 5, 1, 7, 1, 0, 3, 5, 4, 1, 
-			2, 4, 6, 7, 2, 6, 5, 6, 4, 7, 1, 3, 3, 0, 2, 1, 4, 0
-		});
-
-		auto shader = renderer.createShader(loadBinaryFromFile(L"SkyboxVS.cso"), loadBinaryFromFile( L"SkyboxPS.cso"));
-		auto inputLayout = renderer.createInputLayout(desc, shader);
-
+		
 		std::shared_ptr<StoredMaterial> material(new StoredMaterial());
-		material->shader = shader;
+		material->pixelShader = renderer.createPixelShader(loadBinaryFromFile(L"SkyboxPS.cso"));
 		material->samplerStates = { { renderer.createSamplerState(CD3D11_SAMPLER_DESC(CD3D11_DEFAULT())), 0 } };
 		material->constants = renderer.createConstantBuffer(DirectX::XMMatrixIdentity());
 
-		auto obj = renderer.createMeshObject(mesh, material, inputLayout, nullptr);
+		auto obj = renderer.createMeshObject(mesh, material, nullptr);
 		return obj;
 	}
 

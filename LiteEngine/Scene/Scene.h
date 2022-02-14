@@ -138,12 +138,9 @@ namespace LiteEngine::SceneManagement {
 		}
 	};
 
-	// TODO: vertex-shader-material 实用性校验
 	struct Material: public Rendering::Material {
 	protected:
 		Material() = default;
-	public:
-		virtual Rendering::PtrInputLayout getInputLayout() const = 0;
 	};
 
 	struct Mesh : public Object {
