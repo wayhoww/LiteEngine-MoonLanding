@@ -83,15 +83,8 @@ namespace LiteEngine::Rendering {
 		viewport.MinDepth = 0;
 		pass->viewport = viewport;
 
-		static auto depthMapSamplerState = this->createSamplerState([](){
-			CD3D11_SAMPLER_DESC desc(CD3D11_DEFAULT{});
-			desc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-			desc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-			desc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
-			return desc;
-		}());
 
-		pass->CSMDepthMapSampler = depthMapSamplerState;
+		pass->CSMDepthMapSampler = this->getShadowMapSamplerState();
 		pass->CSMDepthMapArray = this->shadowDepthBuffer;
 
 		return pass;

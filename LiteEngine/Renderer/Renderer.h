@@ -305,6 +305,24 @@ namespace LiteEngine::Rendering {
 			return view;
 		}
 
+		PtrSamplerState getShadowMapSamplerState() {
+			static auto depthMapSamplerState = this->createSamplerState([](){
+				CD3D11_SAMPLER_DESC desc(CD3D11_DEFAULT{});
+				desc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+				desc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+				desc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+				return desc;
+			}());
+
+			return depthMapSamplerState;
+		}
+
+	public:
+		void enableBuiltinShadowMap(std::shared_ptr<RenderingPass> pass) {
+			pass->CSMDepthMapArray = shadowDepthBuffer;
+			pass->CSMDepthMapSampler = this->getShadowMapSamplerState();
+		}
+
 	protected:
 
 		Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;

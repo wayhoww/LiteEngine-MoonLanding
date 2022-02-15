@@ -180,12 +180,17 @@ int WINAPI wWinMain(
 
 		renderer.beginRendering();
 
-	/*	offscreenPass->scene = scene;
+		offscreenPass->scene = scene;
 		offscreenPass->scene->camera = smScene.getCameraInfo(probeCamera);
 		screenMat->texEmissionColor = nullptr; 
 		screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = UINT32_MAX;
-		
-		renderer.renderPass(offscreenPass);*/
+
+		std::vector<std::shared_ptr<ler::RenderingPass>> passes;
+		renderer.createShadowMapPasses(passes, scene, {scene->camera.nearZ, 3, 10, 30, 100});
+		renderer.renderPasses(passes);
+
+		renderer.enableBuiltinShadowMap(offscreenPass);
+		renderer.renderPass(offscreenPass);
 		
 		scene->camera = mainRenderingCamera;
 
