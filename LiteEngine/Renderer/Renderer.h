@@ -191,13 +191,22 @@ namespace LiteEngine::Rendering {
 			uint32_t width,
 			uint32_t height
 		) {
-			static auto pass = this->createRenderingPassWithoutSceneAndTarget(
-				[]() {
-				CD3D11_RASTERIZER_DESC desc{CD3D11_DEFAULT()};
-				desc.CullMode = D3D11_CULL_FRONT; 
-				return desc;
-			}(), CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT()));
+			
+			static Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizerState;
+			static Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
+			static std::once_flag once;
 
+			std::call_once(once, [&]() {
+				CD3D11_RASTERIZER_DESC rasterizerDesc{ CD3D11_DEFAULT{} };
+				rasterizerDesc.CullMode = D3D11_CULL_FRONT;
+				CD3D11_DEPTH_STENCIL_DESC depthStencilDesc{ CD3D11_DEFAULT{} };
+				this->device->CreateRasterizerState(&rasterizerDesc, &rasterizerState);
+				this->device->CreateDepthStencilState(&depthStencilDesc, &depthStencilState);
+			});
+
+			std::shared_ptr<RenderingPass> pass(new RenderingPass());
+			pass->rasterizerState = rasterizerState;
+			pass->depthStencilState = depthStencilState;
 			pass->scene = scene;
 			pass->renderTargetView = nullptr;
 			pass->depthStencilView = depthView;
