@@ -4,8 +4,8 @@
 #include "Definitions.hlsli"
 
 struct Light {
-	int type;						// all
-	int shadow;						// all
+	uint type;						// all
+	uint shadow;						// all
 	float innerConeAngle;			    // spot
 	float outerConeAngle;				// spot
 	

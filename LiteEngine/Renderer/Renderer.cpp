@@ -183,26 +183,26 @@ namespace LiteEngine::Rendering {
 		if (renderShadow) {
 			auto mainCamera = scene->camera;
 			auto ratio = scene->camera.farZ / scene->camera.nearZ;
-			const std::vector<float> zList {
+			const std::vector<float> zList{
 				scene->camera.nearZ,
-				scene->camera.nearZ * ratio * 0.01f,
-				scene->camera.nearZ * ratio * 0.1f,
-				scene->camera.farZ
+				3, 10, 30, 300
 			};
 			auto& constants = this->fixedPerframePSConstantBuffer->cpuData<FixedPerframePSConstantBufferData>();
 			for (int i = 0; i < 4; i++) {
 				constants.CSMZList[i][0] = zList[i];
 			}
+
+			int count = 0;
 			for (uint32_t lightID = 0; lightID < (uint32_t)scene->lights.size(); lightID++) {
 
-				auto maps = getSuggestedPointSpotLightDepthCamera(mainCamera, scene->lights[lightID], zList);
+				auto maps = getSuggestedDepthCamera(mainCamera, scene->lights[lightID], zList);
 				for (uint32_t mapID = 0; mapID < (uint32_t)maps.size(); mapID++) {
 					auto& [feasible, lightCamera, z1, z2] = maps[mapID];
 					if (!feasible) {
 						constants.CSMValid[lightID][mapID][0] = false;
 						continue;
 					} 
-
+					count += 1;
 					constants.CSMValid[lightID][mapID][0] = true;
 					constants.trans_W2CMS[lightID][mapID] = DirectX::XMMatrixMultiply(
 						DirectX::XMMatrixMultiply(
@@ -213,7 +213,7 @@ namespace LiteEngine::Rendering {
 							0.5, 0, 0, 0,
 							0, -0.5, 0, 0,
 							0, 0, 1.0, 0,
-							0, 0.5, 0.5, 1
+							0.5, 0.5, 0, 1
 						}
 					);
 
@@ -221,14 +221,18 @@ namespace LiteEngine::Rendering {
 
 					auto shadowPass = this->createDepthMapPass(scene, 
 						this->shadowDepthBuffer->depthBuffers[lightID * NUMBER_SHADOW_MAP_PER_LIGHT + mapID], 
-						this->shadowWidth, 
-						this->shadowHeight
+						(uint32_t)std::round(this->shadowWidth), 
+						(uint32_t)std::round(this->shadowHeight)
 					);
 
 					this->renderPass(shadowPass);
 
 				}
 			}	
+			
+			char buffer[10];
+			sprintf_s(buffer, "%d\n", count);
+			OutputDebugStringA(buffer);
 
 			ID3D11RenderTargetView* nullViews = nullptr;
 			context->OMSetRenderTargets(1, &nullViews, nullptr);
@@ -238,7 +242,13 @@ namespace LiteEngine::Rendering {
 
 		// const std::vector<float> zList = {}
 		//auto shadowPass = this->createDepthMapPass(scene, texArray->depthBuffers[i]);
-		static auto depthMapSamplerState = this->createSamplerState(CD3D11_SAMPLER_DESC(CD3D11_DEFAULT()));
+		static auto depthMapSamplerState = this->createSamplerState([](){
+			CD3D11_SAMPLER_DESC desc(CD3D11_DEFAULT{});
+			desc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+			desc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+			desc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+			return desc;
+		}());
 
 		auto mainPass = this->createDefaultRenderingPass(scene);
 		mainPass->CSMDepthMapArray = this->shadowDepthBuffer;

@@ -10,7 +10,7 @@ static const uint LIGHT_SHADOW_HARD = 0x2;
 static const uint LIGHT_SHADOW_SOFT = 0x3;	// TODO: unimplemented
 
 #define MAX_NUMBER_OF_LIGHTS 4
-#define NUMBER_SHADOW_MAP_PER_LIGHT 3
+#define NUMBER_SHADOW_MAP_PER_LIGHT 4
 
 // 这些都是 custom 的 constants
 

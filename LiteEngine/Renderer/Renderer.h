@@ -13,7 +13,7 @@
 namespace LiteEngine::Rendering {
 
 	constexpr uint32_t MAX_NUMBER_OF_LIGHTS = 4;
-	constexpr uint32_t NUMBER_SHADOW_MAP_PER_LIGHT = 3;
+	constexpr uint32_t NUMBER_SHADOW_MAP_PER_LIGHT = 4;
 
 	namespace LightType {
 		constexpr uint32_t LIGHT_TYPE_POINT = 0x0;
@@ -173,7 +173,7 @@ namespace LiteEngine::Rendering {
 			static auto pass = this->createRenderingPassWithoutSceneAndTarget(
 				[]() {
 				CD3D11_RASTERIZER_DESC desc{CD3D11_DEFAULT()};
-				desc.CullMode = D3D11_CULL_NONE; // todo changeit
+				desc.CullMode = D3D11_CULL_FRONT; 
 				return desc;
 			}(), CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT()));
 
@@ -794,7 +794,11 @@ namespace LiteEngine::Rendering {
 		void recreateShadowDepthBuffer() {
 			this->shadowWidth = (float)this->width;
 			this->shadowHeight = (float)this->height;	
-			this->shadowDepthBuffer = this->createDepthTextureArray(MAX_NUMBER_OF_LIGHTS * NUMBER_SHADOW_MAP_PER_LIGHT, this->shadowWidth, this->shadowHeight);
+			this->shadowDepthBuffer = this->createDepthTextureArray(
+				MAX_NUMBER_OF_LIGHTS * NUMBER_SHADOW_MAP_PER_LIGHT, 
+				(uint32_t)std::round(this->shadowWidth), 
+				(uint32_t)std::round(this->shadowHeight)
+			);
 		}
 	public:
 		void renderScene(

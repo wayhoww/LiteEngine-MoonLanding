@@ -218,7 +218,7 @@ namespace LiteEngine::SceneManagement {
 
 				// normal
 				DirectX::XMVECTOR dir_L = DirectX::XMLoadFloat3(&light->direction_L);
-				auto dir_W = DirectX::XMVector3TransformNormal(dir_L, newTransform);
+				auto dir_W = DirectX::XMVector3Normalize(DirectX::XMVector3TransformNormal(dir_L, newTransform));
 				DirectX::XMStoreFloat3(&lightDesc.direction_W, dir_W);
 
 				// position

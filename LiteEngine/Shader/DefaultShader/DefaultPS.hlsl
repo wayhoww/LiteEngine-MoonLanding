@@ -181,59 +181,60 @@ float4 main(Default_VS_OUTPUT pdata) : SV_TARGET{
 		) : normalize(pdata.normal_W);
 
 	float depth_V = pdata.position_V.z / pdata.position_V.w;
+		
+	for (uint lightID = 0; lightID < numberOfLights; lightID++) {
+		int coneID = -1;
 
-	if (CSMValid[0][0]) {
-		// visibility
-		float4 depthMapCoord = mul(trans_W2CSM[0][0], float4(pdata.position_W, 1));
-		depthMapCoord.xyz /= depthMapCoord.w;
-		float depthSampled = CSMDepthTextures.Sample(CSMDepthSampler, float3(depthMapCoord.xy, 0)).x;
-		if (depthSampled < pdata.position_SV.z / pdata.position_SV.w) {
-			//visibility = 0;
+		for (int j = 0; j < NUMBER_SHADOW_MAP_PER_LIGHT; j++) {
+			if (CSMZList[j] <= depth_V && depth_V <= CSMZList[j + 1]) {
+				coneID = j;
+			} 
 		}
-		return float4(depthMapCoord.xy, 0, 0);
-	} else {
-		return (0, 0, 0, 0);
+
+		float shadowed = 0;
+		if (coneID != -1 && CSMValid[lightID][coneID]) {
+			// visibility
+			float4 depthMapCoord = mul(trans_W2CSM[lightID][coneID], float4(pdata.position_W, 1));
+			depthMapCoord.xyz /= depthMapCoord.w;
+			
+			[unroll]
+			for (float deltaX = -0.001; deltaX < 0.0011; deltaX += 0.001) {
+				[unroll]
+				for (float deltaY = -0.001; deltaY < 0.0011; deltaY += 0.001) {
+					float depthSampled = CSMDepthTextures.Sample(CSMDepthSampler, float3(depthMapCoord.xy + float2(deltaX, deltaY), lightID * NUMBER_SHADOW_MAP_PER_LIGHT + coneID)).x;
+					if (depthSampled < depthMapCoord.z) {
+						shadowed += 1;
+					}
+				}
+			}
+		}
+
+		float visibility = 1 - shadowed / 9;
+
+		Light light = lights[lightID];
+
+		if (light.type == LIGHT_TYPE_POINT || light.type == LIGHT_TYPE_SPOT) {
+			float3 positionVecDist = light.position_W - pdata.position_W;
+			float distance2 = dot(positionVecDist, positionVecDist);
+			float distance = sqrt(distance2);
+			float3 lightDir_W = positionVecDist / distance;	// lightID.e. L
+			float3 brdf = defaultMaterialBRDF(baseColor.xyz, metallic, roughness, 1.45, cameraDir_W, lightDir_W, normal_W);
+			float cosLightNormal = dot(normal_W, lightDir_W);
+			output += visibility * brdf * light.intensity * cosLightNormal / distance2;
+		} else {
+			// Directional
+			float3 lightDir_W = -light.direction_W;
+			float3 brdf = defaultMaterialBRDF(baseColor.xyz, metallic, roughness, 1.45, cameraDir_W, lightDir_W, normal_W);
+			float cosLightNormal = dot(normal_W, lightDir_W);
+			output += visibility * brdf * light.intensity * cosLightNormal;
+		}
 	}
 
-	//	
-	//for (uint lightID = 0; lightID < numberOfLights; lightID++) {
-	//	float visibility = 1;
-	//	int coneID = -1;
+	// ambient 
+	output += 0.1 * baseColor.xyz * ao;
 
-	//	for (int j = 0; j < NUMBER_SHADOW_MAP_PER_LIGHT; j++) {
-	//		if (CSMZList[j] <= depth_V && depth_V <= CSMZList[j + 1]) {
-	//			coneID = j;
-	//		} 
-	//	}
-
-	//	if (coneID != -1 && CSMValid[lightID][coneID]) {
-	//		// visibility
-	//		float4 depthMapCoord = mul(trans_W2CSM[lightID][coneID], float4(pdata.position_W, 1));
-	//		depthMapCoord.xyz /= depthMapCoord.w;
-	//		float depthSampled = CSMDepthTextures.Sample(CSMDepthSampler, float3(depthMapCoord.xy, lightID * NUMBER_SHADOW_MAP_PER_LIGHT + coneID)).x;
-	//		if (depthSampled < pdata.position_SV.z / pdata.position_SV.w) {
-	//			visibility = 0;
-	//		}
-	//	}
-
-	//	// brdf
-	//	float3 positionVecDist = lights[lightID].position_W - pdata.position_W;
-	//	float distance2 = dot(positionVecDist, positionVecDist);
-	//	float distance = sqrt(distance2);
-	//	float3 lightDir_W = positionVecDist / distance;	// lightID.e. L
-
-	//	float3 brdf = defaultMaterialBRDF(baseColor.xyz, metallic, roughness, 1.45, cameraDir_W, lightDir_W, normal_W);
-
-	//	float cosLightNormal = dot(normal_W, lightDir_W);
-
-	//	output += visibility * brdf * lights[lightID].intensity * cosLightNormal / distance2;
-	//}
-
-	//// ambient 
-	//output += 0.1 * baseColor.xyz * ao;
-
-	//// emission
-	//output += emissionColor;
+	// emission
+	output += emissionColor;
 	
 
 	return float4(pow(max(float3(0, 0, 0), output), 1 / 2.2), 1.0);

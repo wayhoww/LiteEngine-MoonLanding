@@ -62,10 +62,10 @@ int WINAPI wWinMain(
 	lesm::Scene smScene;
 	smScene.rootObject = res;
 	auto mainCamera = smScene.search<lesm::Camera>("Camera");
-	mainCamera->data.farZ = 1000;
+	// mainCamera->data.farZ = 1000;
 	
 	auto probeCamera = smScene.search<lesm::Camera>("ProbeCamera");
-	probeCamera->data.farZ = 1000;
+	// probeCamera->data.farZ = 1000;
 	probeCamera->data.aspectRatio = 1;
 	auto skybox = renderer.createCubeMapFromDDS(L"skybox.dds");
 
@@ -175,17 +175,17 @@ int WINAPI wWinMain(
 		auto mainRenderingCamera = scene->camera;
 
 		// 
-		auto cameras = ler::getSuggestedPointSpotLightDepthCamera(mainRenderingCamera, scene->lights[0], { 0.1f, 1.f, 2.f, 4.f });
+		auto cameras = ler::getSuggestedDepthCamera(mainRenderingCamera, scene->lights[0], { 0.1f, 1.f, 2.f, 4.f });
 		// renderer.renderFrame(*scene);
 
 		renderer.beginRendering();
 
-		//offscreenPass->scene = scene;
-		//offscreenPass->scene->camera = smScene.getCameraInfo(probeCamera);
-		//screenMat->texEmissionColor = nullptr; 
-		//screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = UINT32_MAX;
-		//
-		//renderer.renderPass(offscreenPass);
+	/*	offscreenPass->scene = scene;
+		offscreenPass->scene->camera = smScene.getCameraInfo(probeCamera);
+		screenMat->texEmissionColor = nullptr; 
+		screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = UINT32_MAX;
+		
+		renderer.renderPass(offscreenPass);*/
 		
 		scene->camera = mainRenderingCamera;
 
