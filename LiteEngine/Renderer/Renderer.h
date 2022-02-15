@@ -135,13 +135,22 @@ namespace LiteEngine::Rendering {
 		char _space[4];
 	};
 
+	struct PerpassModifiable {
+		// scene 不会持有 pass，也不会持有 modifiable
+		std::shared_ptr<RenderingScene> scene;
+		FixedPerframeVSConstantBufferData* fixedPerframeVSConstants = nullptr;
+		FixedPerframePSConstantBufferData* fixedPerframePSConstants = nullptr;
+		void* customPerframeVSConstants = nullptr;
+		void* customPerframePSConstants = nullptr;
+	};
+
 	struct RenderingPass {
 		std::shared_ptr<RenderingScene> scene;
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizerState;
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
-
+		
 		std::shared_ptr<DepthTextureArray> CSMDepthMapArray;
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> CSMDepthMapSampler;
 
@@ -157,6 +166,11 @@ namespace LiteEngine::Rendering {
 
 		std::string vsSemantic = ShaderSemantics::DEFAULT;
 		std::string psSemantic = ShaderSemantics::DEFAULT;
+
+		bool disableRendering = false;
+
+		std::function<void(PerpassModifiable)> beforeRenderModifier = nullptr;
+		std::function<void(PerpassModifiable)> afterRenderModifier = nullptr;
 	};
 
 
@@ -164,6 +178,13 @@ namespace LiteEngine::Rendering {
 	class Renderer {
 
 	public:
+		void createShadowMapPasses(
+			std::vector<std::shared_ptr<RenderingPass>>& renderingPasses,
+			std::shared_ptr<RenderingScene> scene,
+			std::vector<float> zList,
+			std::shared_ptr<DepthTextureArray> depthMap = nullptr
+		);
+
 		std::shared_ptr<RenderingPass> createDepthMapPass(
 			std::shared_ptr<RenderingScene> scene,
 			PtrDepthStencilView depthView,
@@ -743,43 +764,77 @@ namespace LiteEngine::Rendering {
 			this->clearShaderResourcesAndSamplers();
 		}
 
-
-		void renderPass(std::shared_ptr<RenderingPass>& pass) {		
-			context->RSSetViewports(1, &pass->viewport);
-
-			if (pass->clearColor) {
-				context->ClearRenderTargetView(pass->renderTargetView.Get(), reinterpret_cast<float*>(&pass->colorValue));
+		void renderPasses(
+			const std::vector<std::shared_ptr<RenderingPass>>& passes,
+			uint32_t start = 0,
+			uint32_t length = UINT32_MAX
+		) {
+			auto it = passes.begin() + start;
+			uint32_t count = 0;
+			while (it < passes.end() && count++ < length) {
+				this->renderPass(*it++);
 			}
+		}
 
-			D3D11_CLEAR_FLAG clearFlag = D3D11_CLEAR_FLAG(0);
-			if (pass->clearDepth) clearFlag = D3D11_CLEAR_FLAG(clearFlag | D3D11_CLEAR_DEPTH);
-			if (pass->clearStencil) clearFlag = D3D11_CLEAR_FLAG(clearFlag | D3D11_CLEAR_STENCIL);
-
-			if (clearFlag) {
-				context->ClearDepthStencilView(pass->depthStencilView.Get(), clearFlag, pass->depthValue, pass->stencilValue);
-			}
-
-			this->updateFixedPerframeConstantBuffers(*pass->scene);
-
-			if (pass->CSMDepthMapArray) {
-				context->PSSetShaderResources(TextureSlots::CSM_DEPTH_MAP, 1, pass->CSMDepthMapArray->textureArray.GetAddressOf());
-				context->PSSetSamplers(SamplerSlots::CSM_DEPTH_MAP, 1, pass->CSMDepthMapSampler.GetAddressOf());
-			}
-
-
-			context->OMSetRenderTargets(1, pass->renderTargetView.GetAddressOf(), pass->depthStencilView.Get());
-			context->OMSetDepthStencilState(pass->depthStencilState.Get(), 1);
-
-			context->RSSetState(pass->rasterizerState.Get());
+		void renderPass(const std::shared_ptr<RenderingPass>& pass) {
+			PerpassModifiable modifiableData;
+			modifiableData.scene = pass->scene;
+			modifiableData.fixedPerframePSConstants = &this->fixedPerframePSConstantBuffer
+				->cpuData<FixedPerframePSConstantBufferData>();
+			modifiableData.fixedPerframeVSConstants = &this->fixedPerframeVSConstantBuffer
+				->cpuData<FixedPerframeVSConstantBufferData>();
+			if(this->customPerframeVSConstantBuffer)
+				modifiableData.customPerframeVSConstants = this->customPerframeVSConstantBuffer->getInternalData();
+			if(this->customPerframePSConstantBuffer)
+				modifiableData.customPerframePSConstants = this->customPerframePSConstantBuffer->getInternalData();
 			
-			this->setConstantBuffers();
-
-			for (auto obj : pass->scene->meshObjects) {
-				obj->draw(this->context.Get(), pass->vsSemantic);
+			if (pass->beforeRenderModifier) {
+				pass->beforeRenderModifier(modifiableData);
 			}
 
-			this->clearShaderResourcesAndSamplers();
+			if (!pass->disableRendering) {
+				context->RSSetViewports(1, &pass->viewport);
 
+				if (pass->clearColor) {
+					context->ClearRenderTargetView(pass->renderTargetView.Get(), reinterpret_cast<float*>(&pass->colorValue));
+				}
+
+				D3D11_CLEAR_FLAG clearFlag = D3D11_CLEAR_FLAG(0);
+				if (pass->clearDepth) clearFlag = D3D11_CLEAR_FLAG(clearFlag | D3D11_CLEAR_DEPTH);
+				if (pass->clearStencil) clearFlag = D3D11_CLEAR_FLAG(clearFlag | D3D11_CLEAR_STENCIL);
+
+				if (clearFlag) {
+					context->ClearDepthStencilView(pass->depthStencilView.Get(), clearFlag, pass->depthValue, pass->stencilValue);
+				}
+
+				this->updateFixedPerframeConstantBuffers(*pass->scene);
+
+				if (pass->CSMDepthMapArray) {
+					context->PSSetShaderResources(TextureSlots::CSM_DEPTH_MAP, 1, pass->CSMDepthMapArray->textureArray.GetAddressOf());
+					context->PSSetSamplers(SamplerSlots::CSM_DEPTH_MAP, 1, pass->CSMDepthMapSampler.GetAddressOf());
+				}
+
+
+				context->OMSetRenderTargets(1, pass->renderTargetView.GetAddressOf(), pass->depthStencilView.Get());
+				context->OMSetDepthStencilState(pass->depthStencilState.Get(), 1);
+
+				context->RSSetState(pass->rasterizerState.Get());
+
+				this->setConstantBuffers();
+
+				for (auto obj : pass->scene->meshObjects) {
+					obj->draw(this->context.Get(), pass->vsSemantic);
+				}
+
+				this->clearShaderResourcesAndSamplers();
+
+				ID3D11RenderTargetView* nullTarget = nullptr;
+				context->OMSetRenderTargets(1, &nullTarget, nullptr);
+			}
+
+			if (pass->afterRenderModifier) {
+				pass->afterRenderModifier(modifiableData);
+			}
 		}
 
 	protected:

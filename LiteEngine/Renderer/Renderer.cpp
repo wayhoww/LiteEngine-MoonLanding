@@ -83,6 +83,17 @@ namespace LiteEngine::Rendering {
 		viewport.MinDepth = 0;
 		pass->viewport = viewport;
 
+		static auto depthMapSamplerState = this->createSamplerState([](){
+			CD3D11_SAMPLER_DESC desc(CD3D11_DEFAULT{});
+			desc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+			desc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+			desc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+			return desc;
+		}());
+
+		pass->CSMDepthMapSampler = depthMapSamplerState;
+		pass->CSMDepthMapArray = this->shadowDepthBuffer;
+
 		return pass;
 	}
 
@@ -176,83 +187,95 @@ namespace LiteEngine::Rendering {
 		return doCreateSimpleTexture2DFromWIC(meta, image, *this, device.Get());
 	}
 
-	void Renderer::renderScene(
+	void Renderer::createShadowMapPasses(
+		std::vector<std::shared_ptr<RenderingPass>>& renderingPasses,
 		std::shared_ptr<RenderingScene> scene,
-		bool renderShadow // = true
+		std::vector<float> zList,
+		std::shared_ptr<DepthTextureArray> depthMap
 	) {
-		if (renderShadow) {
-			auto mainCamera = scene->camera;
-			auto ratio = scene->camera.farZ / scene->camera.nearZ;
-			const std::vector<float> zList{
-				scene->camera.nearZ,
-				3, 10, 30, 300
-			};
-			auto& constants = this->fixedPerframePSConstantBuffer->cpuData<FixedPerframePSConstantBufferData>();
-			for (int i = 0; i < 4; i++) {
-				constants.CSMZList[i][0] = zList[i];
+		if (depthMap == nullptr) {
+			depthMap = this->shadowDepthBuffer;
+		}
+
+		auto mainCamera = scene->camera;
+		auto ratio = scene->camera.farZ / scene->camera.nearZ;
+
+		// 设置 constants
+		std::shared_ptr<RenderingPass> constantSettingPass(new RenderingPass());
+		constantSettingPass->disableRendering = true;
+		constantSettingPass->afterRenderModifier = [=](PerpassModifiable data) {
+			// todo 这里存 far 和 near 反而减少空间占用。。
+			for (size_t i = 0; i < std::min<size_t>(NUMBER_SHADOW_MAP_PER_LIGHT + 1, zList.size()); i++) {
+				data.fixedPerframePSConstants->CSMZList[i][0] = zList[i];
 			}
 
-			int count = 0;
-			for (uint32_t lightID = 0; lightID < (uint32_t)scene->lights.size(); lightID++) {
+			memset(data.fixedPerframePSConstants->CSMValid, 
+				0, sizeof(data.fixedPerframePSConstants->CSMValid));
+		};
+		renderingPasses.push_back(constantSettingPass);
 
-				auto maps = getSuggestedDepthCamera(mainCamera, scene->lights[lightID], zList);
-				for (uint32_t mapID = 0; mapID < (uint32_t)maps.size(); mapID++) {
-					auto& [feasible, lightCamera, z1, z2] = maps[mapID];
-					if (!feasible) {
-						constants.CSMValid[lightID][mapID][0] = false;
-						continue;
-					} 
-					count += 1;
-					constants.CSMValid[lightID][mapID][0] = true;
-					constants.trans_W2CMS[lightID][mapID] = DirectX::XMMatrixMultiply(
+		// 渲染深度图
+		for (uint32_t lightID = 0; lightID < (uint32_t)scene->lights.size(); lightID++) {
+
+			auto maps = getSuggestedDepthCamera(mainCamera, scene->lights[lightID], zList);
+
+			for (uint32_t mapID = 0; mapID < (uint32_t)maps.size(); mapID++) {
+				auto& cameraDesc = maps[mapID];
+
+				// 如果不合适用 CSM（光源在锥体内，或者 fov 会很大），那么跳过
+				// CMSValid 默认初始化为了 false
+				auto feasible = std::get<0>(cameraDesc);
+				if (!feasible) continue;
+
+
+				auto shadowPass = this->createDepthMapPass(scene, 
+					this->shadowDepthBuffer->depthBuffers[lightID * NUMBER_SHADOW_MAP_PER_LIGHT + mapID], 
+					(uint32_t)std::round(depthMap->width), 
+					(uint32_t)std::round(depthMap->height)
+				);
+
+				// 渲染前，改相机
+				shadowPass->beforeRenderModifier = [=](PerpassModifiable data) {
+					data.scene->camera = std::get<1>(cameraDesc);
+				};
+
+				// 渲染后，改回来相机，并且把相关常数设置好
+				shadowPass->afterRenderModifier = [=](PerpassModifiable data) {
+					data.scene->camera = mainCamera;
+
+					data.fixedPerframePSConstants->CSMValid[lightID][mapID][0] = true;
+					data.fixedPerframePSConstants->trans_W2CMS[lightID][mapID] = DirectX::XMMatrixMultiply(
 						DirectX::XMMatrixMultiply(
-							lightCamera.trans_W2V,
-							lightCamera.getV2CMatrix()
-						),
-						DirectX::XMMATRIX {
+							std::get<1>(cameraDesc).trans_W2V,
+							std::get<1>(cameraDesc).getV2CMatrix()
+						), DirectX::XMMATRIX {
 							0.5, 0, 0, 0,
 							0, -0.5, 0, 0,
 							0, 0, 1.0, 0,
 							0.5, 0.5, 0, 1
 						}
 					);
+				};
 
-					scene->camera = lightCamera;
+				renderingPasses.push_back(shadowPass);
+			}
+		}	
+	}
 
-					auto shadowPass = this->createDepthMapPass(scene, 
-						this->shadowDepthBuffer->depthBuffers[lightID * NUMBER_SHADOW_MAP_PER_LIGHT + mapID], 
-						(uint32_t)std::round(this->shadowWidth), 
-						(uint32_t)std::round(this->shadowHeight)
-					);
+	void Renderer::renderScene(
+		std::shared_ptr<RenderingScene> scene,
+		bool renderShadow // = true
+	) {
+		if (renderShadow) {
+			std::vector<std::shared_ptr<RenderingPass>> passes;
+			this->createShadowMapPasses(passes, scene, {
+				scene->camera.nearZ, 3, 10, 30, 100	
+			} /*, default to nullptr*/);
 
-					this->renderPass(shadowPass);
-
-				}
-			}	
-			
-			char buffer[10];
-			sprintf_s(buffer, "%d\n", count);
-			OutputDebugStringA(buffer);
-
-			ID3D11RenderTargetView* nullViews = nullptr;
-			context->OMSetRenderTargets(1, &nullViews, nullptr);
-
-			scene->camera = mainCamera;
+			this->renderPasses(passes);
 		}
-
-		// const std::vector<float> zList = {}
-		//auto shadowPass = this->createDepthMapPass(scene, texArray->depthBuffers[i]);
-		static auto depthMapSamplerState = this->createSamplerState([](){
-			CD3D11_SAMPLER_DESC desc(CD3D11_DEFAULT{});
-			desc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-			desc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-			desc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
-			return desc;
-		}());
-
+		
 		auto mainPass = this->createDefaultRenderingPass(scene);
-		mainPass->CSMDepthMapArray = this->shadowDepthBuffer;
-		mainPass->CSMDepthMapSampler = depthMapSamplerState;
 		this->renderPass(mainPass);
 	}
 

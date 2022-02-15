@@ -172,6 +172,10 @@ namespace LiteEngine::Rendering {
 		ID3D11Buffer* const* getAddressOf() const {
 			return buffer.GetAddressOf();
 		}
+
+		void* getInternalData() {
+			return internalData;
+		}
 	};
 
 
