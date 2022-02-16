@@ -74,6 +74,9 @@
     <ClInclude Include="Renderer\Shadow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="IO\CameraController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Renderer\README.md" />
