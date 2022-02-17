@@ -39,6 +39,7 @@ constexpr uint32_t getKeyCode() {
 	}
 }
 
+uint32_t getKeyCode(char c);
 constexpr float PI = 3.141592653589793115997963468544f;
 
 }

@@ -125,45 +125,24 @@ int WINAPI wWinMain(
 
 	auto oldFOV = mainCamera->data.fieldOfViewYRadian;
 
-	le::IO::MouseInput controller;
+	le::IO::HoldRotateController controller;
+	le::IO::MoveController moveWS('W', 'S');
+	le::IO::MoveController moveAD('A', 'D');
+	le::IO::MoveController moveEC('E', 'C');
 
 	window.renderCallback = [&](
 		const le::RenderingWindow& window,
 		const std::vector<le::RenderingWindow::EventType>& events
 		) {
 
-		controller.receiveEvent(events, (float)(1. / renderer.getCurrentFPS()));
+		auto duration = (float)(1. / renderer.getCurrentFPS());
+		controller.receiveEvent(events, duration);
+		moveWS.receiveEvent(events, duration);
+		moveAD.receiveEvent(events, duration);
+		moveEC.receiveEvent(events, duration);
+
 		auto [accX, accY, accZ] = controller.getXYZ();
 
-		// 基本上是 -2 ~ 2 的范围
-		int countForward = 0;	// +z
-		int countUp = 0;		// +y
-		int countRight = 0;		// +x
-
-		int countRotateUp = 0;			// +x
-		int countRotateRight = 0;		// +x
-
-		bool resetCamera = false;
-		for (auto [msg, wparam, lparam] : events) {
-			if (msg == WM_KEYDOWN) {
-				auto keyCount = LOWORD(lparam);
-				if (wparam == le::getKeyCode<'W'>()) {
-					countForward += keyCount;
-				} else if (wparam == le::getKeyCode<'S'>()) {
-					countForward -= keyCount;
-				} else if (wparam == le::getKeyCode<'D'>()) {
-					countRight += keyCount;
-				} else if (wparam == le::getKeyCode<'A'>()) {
-					countRight -= keyCount;
-				} else if (wparam == le::getKeyCode<'E'>()) {
-					countUp += keyCount;
-				} else if (wparam == le::getKeyCode<'C'>()) {
-					countUp -= keyCount;
-				} else if (wparam == VK_SPACE) {
-					smScene.rootObject->dump();
-				}
-			}
-		}
 		float moveUnit = float(1. / 60 * 3);
 		float rotateUnit = float(3.14159 / 60 / 10);
 
@@ -171,12 +150,12 @@ int WINAPI wWinMain(
 			movingObject->rotateLocalCoord({ 0, 0, 1 }, 0.02f / le::PI);
 			movingObject->moveLocalCoord({ 0.02f, 0, 0 });
 		}
-		mainCameraYawLayer->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
+		mainCameraYawLayer->moveLocalCoord({-moveAD.popValue(), moveEC.popValue(), moveWS.popValue()});
 		// i.e. 先沿着 Z 轴转，再沿着旋转之后的新 X 轴转
 		mainCameraYawLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, accX);
 		mainCameraPitchLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, accY);
 
-		mainCamera->data.fieldOfViewYRadian = std::min<float>(le::PI * 0.8, ((accZ + 1) / 2 + 0.5) * oldFOV);
+		mainCamera->data.fieldOfViewYRadian = (float)std::min<double>(le::PI * 0.8, ((accZ + 1) / 2 + 0.5) * oldFOV);
 
 	//	mainCamera->rotateParentCoord(DirectX::XMQuaternionRotationRollPitchYaw(mouseDy * 0.001, mouseDx * 0.001, 0));
 	/*	mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0, 0}, rotateUnit * countRotateRight));

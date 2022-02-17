@@ -38,4 +38,17 @@ namespace LiteEngine {
 		return converter.from_bytes(wstr);
 	}
 
+
+
+	uint32_t getKeyCode(char c) {
+		UINT KEYCODE_A = 0x41;
+		if (c >= 'a' && c <= 'z') {
+			return KEYCODE_A + (c - 'a');
+		} else if (c >= 'A' && c <= 'Z') {
+			return KEYCODE_A + (c - 'A');
+		} else {
+			throw std::exception("keycode is invalid");
+		}
+	}
+
 }
