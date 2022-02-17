@@ -2,6 +2,7 @@
 
 #include "../Renderer/Resources.h"
 #include "../Renderer/Renderer.h"
+#include "../Utilities/Utilities.h"
 #include "DefaultDS.h"
 
 #include <string>
@@ -36,7 +37,13 @@ namespace LiteEngine::SceneManagement {
 		}
 
 		std::shared_ptr<Object> insertParent() {
+			if (this->parent.expired()) {
+				return nullptr;
+			}
+
 			std::shared_ptr<Object> newParent(new Object());
+			static uint64_t parent_id = 0;
+			newParent->name = this->name + "__#PARENT_" + std::to_string(parent_id++);
 			newParent->parent = this->parent;
 
 			auto oldParent = this->parent.lock();
@@ -44,6 +51,7 @@ namespace LiteEngine::SceneManagement {
 				if (&*child == this) {
 					newParent->children.push_back(child);
 					child = newParent;
+					break;
 				}
 			}
 
@@ -155,7 +163,9 @@ namespace LiteEngine::SceneManagement {
 			auto out = this->getTransformMatrix();
 		
 			if (auto ptr = this->parent.lock(); ptr) {
-				return DirectX::XMMatrixMultiply(ptr->getLocalToWorldMatrix(), out);
+				auto prev = ptr->getLocalToWorldMatrix();
+				auto rst = DirectX::XMMatrixMultiply(out, prev);
+				return rst;
 			} else {
 				return out;
 			}
@@ -171,6 +181,35 @@ namespace LiteEngine::SceneManagement {
 
 		void setLocalPos(const DirectX::XMFLOAT3& val) {
 			this->transT = val;
+		}
+
+		void dump(int level = 0, Object* parent = nullptr) {
+			bool parentValid = &*this->parent.lock() == parent;
+			DirectX::XMVECTOR axis;
+			float angle;
+			DirectX::XMFLOAT3 axis3;
+			DirectX::XMQuaternionToAxisAngle(&axis, &angle, this->transR);
+			DirectX::XMStoreFloat3(&axis3, axis);
+
+
+			OutputDebugStringA(
+				(std::string(level * 4 + 2, ' ') + " > " +
+					(parentValid ? "" : "[Invalid Parent] ") + this->name).c_str());
+			
+			auto pos = this->getWorldPosition();
+
+			static char buffer[1000];
+			sprintf_s(buffer, " R: [%.2f %.2f %.2f] %.2f deg; T: [%.2f %.2f %.2f]([%.2f %.2f %.2f])\n",
+				axis3.x, axis3.y, axis3.z, angle / PI * 180,
+				transT.x, transT.y, transT.z,
+				pos.x, pos.y, pos.z
+			);
+
+			OutputDebugStringA(buffer);
+
+			for (auto child : this->children) {
+				child->dump(level + 1, this);
+			}
 		}
 	};
 
@@ -292,7 +331,7 @@ namespace LiteEngine::SceneManagement {
 			if (node == nullptr) return;
 
 			// DirectX: ÐÐÖ÷Ðò
-			auto newTransform = DirectX::XMMatrixMultiply(transform, node->getTransformMatrix());
+			auto newTransform = DirectX::XMMatrixMultiply(node->getTransformMatrix(), transform);
 
 			if (auto mesh = std::dynamic_pointer_cast<Mesh>(node); mesh) {
 				auto& meshObj = mesh->data;

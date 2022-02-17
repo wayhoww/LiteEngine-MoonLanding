@@ -52,40 +52,56 @@ int WINAPI wWinMain(
 	lesm::Scene smScene;
 	smScene.rootObject = res;
 	auto mainCamera = smScene.search<lesm::Camera>("Camera");
-	auto mainCameraParent = mainCamera->insertParent();
+	auto mainCameraPitchLayer = mainCamera->insertParent();
+	auto mainCameraYawLayer = mainCameraPitchLayer->insertParent();
+	auto mainCameraPositionLayer = mainCameraYawLayer->insertParent();
+
+	smScene.rootObject->dump();
+
 	//// mainCamera->data.farZ = 1000;
 	//mainCamera->fixedWorldUp = true;
 	//mainCamera->worldUp = { 0, 0, 1 };
 
 	auto probeCamera = smScene.search<lesm::Camera>("ProbeCamera");
 	// probeCamera->data.farZ = 1000;
-	probeCamera->data.aspectRatio = 1;
+	if (probeCamera) {
+		probeCamera->data.aspectRatio = 1;
+	}
 	auto skybox = renderer.createCubeMapFromDDS(L"skybox.dds");
 
 	auto movingObject = smScene.searchObject("Icosphere.014");
-	movingObject->moveParentCoord({ 0, 0, 0.5 });
+	if (movingObject) {
+		movingObject->moveParentCoord({ 0, 0, 0.5 });
+	}
 
 	auto renderableTexture = renderer.createRenderableTexture(1000, 1000, 1);
 	
-	auto screenObj = smScene.searchObject("ScreenPlane")->children[0];
-	auto screenPlane = std::dynamic_pointer_cast<lesm::Mesh>(screenObj);
-	auto screenMat = std::dynamic_pointer_cast<lesm::DefaultMaterial>(screenPlane->material);
-	
+	auto screenPlane = smScene.searchObject("ScreenPlane");
+	auto screenObj = screenPlane ? screenPlane->children[0] : nullptr;
+	std::shared_ptr<lesm::DefaultMaterial> screenMat;
+	if (screenObj) {
+		auto screenPlane = std::dynamic_pointer_cast<lesm::Mesh>(screenObj);
+		screenMat = std::dynamic_pointer_cast<lesm::DefaultMaterial>(screenPlane->material);
+	}
+
 	auto offscreenPassRastDesc = CD3D11_RASTERIZER_DESC(CD3D11_DEFAULT());
 	offscreenPassRastDesc.CullMode = D3D11_CULL_NONE;
-	auto offscreenPass = renderer.createRenderingPassWithoutSceneAndTarget(
+	auto offscreenPass = screenObj ? renderer.createRenderingPassWithoutSceneAndTarget(
 		offscreenPassRastDesc,
 		CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT())
-	);
-	offscreenPass->renderTargetView = renderableTexture.renderTargetView;
-	offscreenPass->depthStencilView = renderer.createDepthStencilView(1000, 1000);
-	offscreenPass->clearStencil = false;
-	D3D11_VIEWPORT viewport = {};
-	viewport.Width = 1000;
-	viewport.Height = 1000;
-	viewport.MaxDepth = 1;
-	viewport.MinDepth = 0;
-	offscreenPass->viewport = viewport;
+	) : nullptr;
+	if (offscreenPass) {
+		offscreenPass->renderTargetView = renderableTexture.renderTargetView;
+		offscreenPass->depthStencilView = renderer.createDepthStencilView(1000, 1000);
+		offscreenPass->clearStencil = false;
+
+		D3D11_VIEWPORT viewport = {};
+		viewport.Width = 1000;
+		viewport.Height = 1000;
+		viewport.MaxDepth = 1;
+		viewport.MinDepth = 0;
+		offscreenPass->viewport = viewport;
+	}
 	
 	// Z-up 右手系 -> Y-up 左手系
 	// C++ 中出现的所有矩阵都应该是用于右乘（vec * mat）的矩阵
@@ -144,21 +160,21 @@ int WINAPI wWinMain(
 				} else if (wparam == le::getKeyCode<'C'>()) {
 					countUp -= keyCount;
 				} else if (wparam == VK_SPACE) {
-					resetCamera = true;
+					smScene.rootObject->dump();
 				}
 			}
 		}
 		float moveUnit = float(1. / 60 * 3);
 		float rotateUnit = float(3.14159 / 60 / 10);
 
-		movingObject->rotateLocalCoord({ 0, 0, 1 }, 0.02f / le::PI);
-		movingObject->moveLocalCoord({ 0.02f, 0, 0 });
-		mainCameraParent->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
+		if (movingObject) {
+			movingObject->rotateLocalCoord({ 0, 0, 1 }, 0.02f / le::PI);
+			movingObject->moveLocalCoord({ 0.02f, 0, 0 });
+		}
+		mainCameraYawLayer->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
 		// i.e. 先沿着 Z 轴转，再沿着旋转之后的新 X 轴转
-		mainCamera->transR = DirectX::XMQuaternionMultiply(
-			DirectX::XMQuaternionRotationAxis({ 1, 0, 0 }, accY),
-			DirectX::XMQuaternionRotationAxis({ 0, 0, 1 }, accX)
-		);
+		mainCameraYawLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, accX);
+		mainCameraPitchLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, accY);
 
 		mainCamera->data.fieldOfViewYRadian = std::min<float>(le::PI * 0.8, ((accZ + 1) / 2 + 0.5) * oldFOV);
 
@@ -179,22 +195,29 @@ int WINAPI wWinMain(
 
 		renderer.beginRendering();
 
-		offscreenPass->scene = scene;
-		offscreenPass->scene->camera = smScene.getCameraInfo(probeCamera);
-		screenMat->texEmissionColor = nullptr; 
-		screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = UINT32_MAX;
+		if (probeCamera) {
+			offscreenPass->scene = scene;
+			offscreenPass->scene->camera = smScene.getCameraInfo(probeCamera);
+		}
 
+		if (screenMat) {
+			screenMat->texEmissionColor = nullptr;
+			screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = UINT32_MAX;
+		}
 		std::vector<std::shared_ptr<ler::RenderingPass>> passes;
 		renderer.createShadowMapPasses(passes, scene, {scene->camera.nearZ, 3, 10, 30, 100});
 		renderer.renderPasses(passes);
 
-		renderer.enableBuiltinShadowMap(offscreenPass);
-		renderer.renderPass(offscreenPass);
-		
-		scene->camera = mainRenderingCamera;
+		if (offscreenPass) {
+			renderer.enableBuiltinShadowMap(offscreenPass);
+			renderer.renderPass(offscreenPass);
+		}
 
-		screenMat->texEmissionColor = renderableTexture.textureView;
-		screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = 0;
+		scene->camera = mainRenderingCamera;
+		if (screenMat) {
+			screenMat->texEmissionColor = renderableTexture.textureView;
+			screenMat->constants->cpuData<lesm::DefaultMaterialConstantData>().uvEmissionColor = 0;
+		}
 		renderer.renderScene(scene);
 
 		
