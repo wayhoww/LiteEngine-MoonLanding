@@ -21,7 +21,7 @@
     <ClCompile Include="Utilities\Utilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Window\RenderingWindow.cpp">
+    <ClCompile Include="IO\RenderingWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\Renderer.cpp">
@@ -41,13 +41,10 @@
     <ClInclude Include="Renderer\Resources.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ThirdParty\TinyObjLoader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Utilities\Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Window\RenderingWindow.h">
+    <ClInclude Include="IO\RenderingWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Scene\DefaultDS.h">
@@ -75,6 +72,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="IO\CameraController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LiteEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

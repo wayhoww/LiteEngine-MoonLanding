@@ -3,9 +3,15 @@
 #include "../Utilities/Utilities.h"
 #include "Shadow.h"
 
+#pragma comment(lib, "runtimeobject")
+
 namespace LiteEngine::Rendering {
 
 	static HWND rendererHandle = nullptr;
+
+	void initializeWRL() {
+		static thread_local Microsoft::WRL::Wrappers::RoInitializeWrapper initialize(RO_INIT_MULTITHREADED);
+	}
 
 	bool Renderer::setHandle(HWND hwnd) {
 		if (rendererHandle) return false;
@@ -133,6 +139,7 @@ namespace LiteEngine::Rendering {
 	}
 
 	PtrShaderResourceView Renderer::createCubeMapFromDDS(const std::wstring& file) {
+		initializeWRL();
 		DirectX::DDS_FLAGS flags = DirectX::DDS_FLAGS_FORCE_RGB;
 		DirectX::TexMetadata meta;			// out_opt
 		DirectX::ScratchImage image;		// out
@@ -152,6 +159,7 @@ namespace LiteEngine::Rendering {
 		Renderer& renderer,
 		ID3D11Device* device
 	) {
+		initializeWRL();
 		if (image.GetImageCount() <= 0) {
 			throw std::exception("no image is loaded");
 		}
@@ -162,6 +170,7 @@ namespace LiteEngine::Rendering {
 	}
 
 	PtrShaderResourceView Renderer::createSimpleTexture2DFromWIC(const std::wstring& file) {
+		initializeWRL();
 		DirectX::WIC_FLAGS flags = DirectX::WIC_FLAGS_FORCE_RGB;
 		DirectX::TexMetadata meta;			// out_opt
 		DirectX::ScratchImage image;		// out
@@ -172,6 +181,7 @@ namespace LiteEngine::Rendering {
 
 
 	PtrShaderResourceView  Renderer::createSimpleTexture2DFromWIC(const uint8_t* memory, size_t size) {
+		initializeWRL();
 		DirectX::WIC_FLAGS flags = DirectX::WIC_FLAGS_FORCE_RGB;
 		DirectX::TexMetadata meta;			// out_opt
 		DirectX::ScratchImage image;		// out

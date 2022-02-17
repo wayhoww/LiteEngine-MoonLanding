@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <Windows.h>
+#include "../Utilities/Utilities.h"
 
 namespace LiteEngine::IO {
 

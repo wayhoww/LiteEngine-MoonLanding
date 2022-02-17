@@ -1,19 +1,13 @@
 #include <Windows.h>
 #include <wrl.h>
 
-#include "LiteEngine/Window/RenderingWindow.h"
-#include "LiteEngine/Renderer/Renderer.h"
-#include "LiteEngine/Renderer/Resources.h"
-#include "LiteEngine/Utilities/Utilities.h"
-#include "LiteEngine/IO/DefaultLoader.h"
-#include "LiteEngine/Renderer/Shadow.h"
-#include "LiteEngine/IO/CameraController.h"
+#include "LiteEngine/LiteEngine.h"
 
 #include <numeric>
 #include <algorithm>
 #include <cmath>
 
-#pragma comment(lib, "runtimeobject") // required by RoInitializeWrapper
+//#pragma comment(lib, "runtimeobject") // required by RoInitializeWrapper
 
 /*
 	smScene.activeCamera->data.fieldOfViewYRadian = 1.0247789206214755f;
@@ -28,10 +22,10 @@ int WINAPI wWinMain(
 ) {
 	// required by DirectXTeX
 	// 需要在 ！！每一个！！ 调用 DirectXTeX 的线程调用
-	Microsoft::WRL::Wrappers::RoInitializeWrapper initialize(RO_INIT_MULTITHREADED);
-	if (FAILED(initialize)) {
-		assert(false);
-	}
+	//Microsoft::WRL::Wrappers::RoInitializeWrapper initialize(RO_INIT_MULTITHREADED);
+	//if (FAILED(initialize)) {
+	//	assert(false);
+	//}
 
 	SetProcessDPIAware();
 

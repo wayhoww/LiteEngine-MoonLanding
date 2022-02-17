@@ -116,23 +116,23 @@
     <ClCompile Include="Renderer\Resources.cpp" />
     <ClCompile Include="Renderer\Shadow.cpp" />
     <ClCompile Include="Utilities\Utilities.cpp" />
-    <ClCompile Include="Window\RenderingWindow.cpp" />
+    <ClCompile Include="IO\RenderingWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IO\CameraController.h" />
     <ClInclude Include="IO\DefaultLoader.h" />
+    <ClInclude Include="LiteEngine.h" />
     <ClInclude Include="Renderer\Renderer.h" />
     <ClInclude Include="Renderer\Resources.h" />
     <ClInclude Include="Renderer\Shadow.h" />
     <ClInclude Include="Scene\DefaultDS.h" />
     <ClInclude Include="Scene\Scene.h" />
-    <ClInclude Include="ThirdParty\TinyObjLoader.h" />
     <ClInclude Include="ThirdParty\tiny_gltf\json.hpp" />
     <ClInclude Include="ThirdParty\tiny_gltf\stb_image.h" />
     <ClInclude Include="ThirdParty\tiny_gltf\stb_image_write.h" />
     <ClInclude Include="ThirdParty\tiny_gltf\tiny_gltf.h" />
     <ClInclude Include="Utilities\Utilities.h" />
-    <ClInclude Include="Window\RenderingWindow.h" />
+    <ClInclude Include="IO\RenderingWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
