@@ -82,9 +82,9 @@ namespace LiteEngine::Rendering {
 
 			DirectX::XMMATRIX getV2CMatrix() const {
 				if (projectionType == RenderingScene::CameraInfo::ProjectionType::PERSPECTIVE) {
-					return DirectX::XMMatrixPerspectiveFovRH(fieldOfViewYRadian, aspectRatio, nearZ, farZ);
+					return DirectX::XMMatrixPerspectiveFovLH(fieldOfViewYRadian, aspectRatio, nearZ, farZ);
 				}else {
-					return DirectX::XMMatrixOrthographicRH(viewWidth, viewHeight, nearZ, farZ);
+					return DirectX::XMMatrixOrthographicLH(viewWidth, viewHeight, nearZ, farZ);
 				}
 			}
 		};
@@ -198,7 +198,7 @@ namespace LiteEngine::Rendering {
 
 			std::call_once(once, [&]() {
 				CD3D11_RASTERIZER_DESC rasterizerDesc{ CD3D11_DEFAULT{} };
-				rasterizerDesc.CullMode = D3D11_CULL_NONE;
+				rasterizerDesc.CullMode = D3D11_CULL_FRONT;
 				CD3D11_DEPTH_STENCIL_DESC depthStencilDesc{ CD3D11_DEFAULT{} };
 				this->device->CreateRasterizerState(&rasterizerDesc, &rasterizerState);
 				this->device->CreateDepthStencilState(&depthStencilDesc, &depthStencilState);

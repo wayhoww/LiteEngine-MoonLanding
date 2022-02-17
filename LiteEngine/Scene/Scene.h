@@ -228,6 +228,7 @@ namespace LiteEngine::SceneManagement {
 			auto cameraTrans = setAbsScaleComponentToOne(transformMatrix);
 			auto det = DirectX::XMMatrixDeterminant(cameraTrans);
 			auto trans = DirectX::XMMatrixInverse(&det, cameraTrans);
+			return trans;
 
 			auto lookEye = DirectX::XMVector3TransformCoord({ 0, 0, 0 }, transformMatrix);
 			auto lookTo = DirectX::XMVector3TransformNormal({0, 0, 1}, transformMatrix);
@@ -257,9 +258,9 @@ namespace LiteEngine::SceneManagement {
 			}
 			
 			if (lookAtMode) {
-				return DirectX::XMMatrixLookAtRH(lookEye, lookAt, lookUp);
+				return DirectX::XMMatrixLookAtLH(lookEye, lookAt, lookUp);
 			} else {
-				return DirectX::XMMatrixLookToRH(lookEye, lookTo, lookUp);
+				return DirectX::XMMatrixLookToLH(lookEye, lookTo, lookUp);
 			}
 
 			assert(false);
