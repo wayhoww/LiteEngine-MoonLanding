@@ -26,6 +26,12 @@ protected:
 	bool windowShouldClose = false;
 	DWORD style = 0;
 	std::vector<EventType> events;
+	bool mouseCaptured = false;
+	int mouseCenterX = 0;
+	int mouseCenterY = 0;
+
+	int mouseWinCenterX = 0;
+	int mouseWinCenterY = 0;
 
 	virtual void render();
 	virtual LRESULT event(UINT msg, WPARAM wparam, LPARAM lparam);

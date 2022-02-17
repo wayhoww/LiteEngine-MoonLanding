@@ -65,13 +65,19 @@ bool RenderingWindow::show() {
 }
 
 LRESULT RenderingWindow::event(UINT msg, WPARAM wparam, LPARAM lparam) {
-	if (msg == WM_DESTROY) {
+	switch (msg) {
+	case WM_DESTROY:
 		this->windowShouldClose = true;
 		return 0;
-	} else if (msg == WM_KEYDOWN) {
+	case WM_KEYDOWN:
+	case WM_KEYUP:
+	case WM_MOUSEMOVE:
+	case WM_LBUTTONDOWN:
+	case WM_LBUTTONUP:
+	case WM_MOUSEWHEEL:
 		this->events.push_back({ msg, wparam, lparam });
 		return 0;
-	} else {
+	default:
 		return DefWindowProc(hwnd, msg, wparam, lparam);
 	}
 }

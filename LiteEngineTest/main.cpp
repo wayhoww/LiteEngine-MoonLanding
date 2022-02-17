@@ -7,6 +7,7 @@
 #include "LiteEngine/Utilities/Utilities.h"
 #include "LiteEngine/IO/DefaultLoader.h"
 #include "LiteEngine/Renderer/Shadow.h"
+#include "LiteEngine/IO/CameraController.h"
 
 #include <numeric>
 #include <algorithm>
@@ -18,17 +19,6 @@
 	smScene.activeCamera->data.fieldOfViewYRadian = 1.0247789206214755f;
 	smScene.activeCamera->data.aspectRatio = float(1.0 * size.width / size.height);
 */
-
-uint32_t getKeyCode(char c) {
-	constexpr UINT KEYCODE_A = 0x41;
-	if (c >= 'a' && c <= 'z') {
-		return KEYCODE_A + (c - 'a');
-	} else if (c >= 'A' && c <= 'Z') {
-		return KEYCODE_A + (c - 'A');
-	} else {
-		throw std::exception("invalid key");
-	}
-}
 
 int WINAPI wWinMain(
 	_In_ HINSTANCE hInstance,
@@ -62,8 +52,11 @@ int WINAPI wWinMain(
 	lesm::Scene smScene;
 	smScene.rootObject = res;
 	auto mainCamera = smScene.search<lesm::Camera>("Camera");
-	// mainCamera->data.farZ = 1000;
-	
+	auto mainCameraParent = mainCamera->insertParent();
+	//// mainCamera->data.farZ = 1000;
+	//mainCamera->fixedWorldUp = true;
+	//mainCamera->worldUp = { 0, 0, 1 };
+
 	auto probeCamera = smScene.search<lesm::Camera>("ProbeCamera");
 	// probeCamera->data.farZ = 1000;
 	probeCamera->data.aspectRatio = 1;
@@ -114,10 +107,18 @@ int WINAPI wWinMain(
 	auto redTexture = renderer.createDefaultTexture({ 1, 0, 0, 0 }, 2);
 	auto blueTexture = renderer.createDefaultTexture({ 0, 0, 1, 0 }, 2);
 
+	auto oldFOV = mainCamera->data.fieldOfViewYRadian;
+
+	le::IO::MouseInput controller;
+
 	window.renderCallback = [&](
 		const le::RenderingWindow& window,
 		const std::vector<le::RenderingWindow::EventType>& events
 		) {
+
+		controller.receiveEvent(events, (float)(1. / renderer.getCurrentFPS()));
+		auto [accX, accY, accZ] = controller.getXYZ();
+
 		// 基本上是 -2 ~ 2 的范围
 		int countForward = 0;	// +z
 		int countUp = 0;		// +y
@@ -130,26 +131,18 @@ int WINAPI wWinMain(
 		for (auto [msg, wparam, lparam] : events) {
 			if (msg == WM_KEYDOWN) {
 				auto keyCount = LOWORD(lparam);
-				if (wparam == getKeyCode('W')) {
+				if (wparam == le::getKeyCode<'W'>()) {
 					countForward += keyCount;
-				} else if (wparam == getKeyCode('S')) {
+				} else if (wparam == le::getKeyCode<'S'>()) {
 					countForward -= keyCount;
-				} else if (wparam == getKeyCode('D')) {
+				} else if (wparam == le::getKeyCode<'D'>()) {
 					countRight += keyCount;
-				} else if (wparam == getKeyCode('A')) {
+				} else if (wparam == le::getKeyCode<'A'>()) {
 					countRight -= keyCount;
-				} else if (wparam == getKeyCode('E')) {
+				} else if (wparam == le::getKeyCode<'E'>()) {
 					countUp += keyCount;
-				} else if (wparam == getKeyCode('C')) {
+				} else if (wparam == le::getKeyCode<'C'>()) {
 					countUp -= keyCount;
-				} else if (wparam == VK_UP) {
-					countRotateUp += keyCount;
-				} else if (wparam == VK_DOWN) {
-					countRotateUp -= keyCount;
-				} else if (wparam == VK_RIGHT) {
-					countRotateRight += keyCount;
-				} else if (wparam == VK_LEFT) {
-					countRotateRight -= keyCount;
 				} else if (wparam == VK_SPACE) {
 					resetCamera = true;
 				}
@@ -160,12 +153,18 @@ int WINAPI wWinMain(
 
 		movingObject->rotateLocalCoord({ 0, 0, 1 }, 0.02f / le::PI);
 		movingObject->moveLocalCoord({ 0.02f, 0, 0 });
-		mainCamera->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
-		mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0, 0}, rotateUnit * countRotateRight));
-		mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({1, 0, 0, 0}, rotateUnit * countRotateUp));
-		if (resetCamera) {
-			*mainCamera = cameraBackup;
-		}
+		mainCameraParent->moveLocalCoord({countRight * moveUnit, countUp * moveUnit, countForward * moveUnit});
+		// i.e. 先沿着 Z 轴转，再沿着旋转之后的新 X 轴转
+		mainCamera->transR = DirectX::XMQuaternionMultiply(
+			DirectX::XMQuaternionRotationAxis({ 1, 0, 0 }, accY),
+			DirectX::XMQuaternionRotationAxis({ 0, 0, 1 }, accX)
+		);
+
+		mainCamera->data.fieldOfViewYRadian = std::min<float>(le::PI * 0.8, ((accZ + 1) / 2 + 0.5) * oldFOV);
+
+	//	mainCamera->rotateParentCoord(DirectX::XMQuaternionRotationRollPitchYaw(mouseDy * 0.001, mouseDx * 0.001, 0));
+	/*	mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0, 0}, rotateUnit * countRotateRight));
+		mainCamera->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({1, 0, 0, 0}, rotateUnit * countRotateUp));*/
 
 		smScene.activeCamera = mainCamera;
 

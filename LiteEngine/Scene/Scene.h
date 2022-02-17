@@ -35,6 +35,31 @@ namespace LiteEngine::SceneManagement {
 			);
 		}
 
+		std::shared_ptr<Object> insertParent() {
+			std::shared_ptr<Object> newParent(new Object());
+			newParent->parent = this->parent;
+
+			auto oldParent = this->parent.lock();
+			for (auto& child : oldParent->children) {
+				if (&*child == this) {
+					newParent->children.push_back(child);
+					child = newParent;
+				}
+			}
+
+			this->parent = newParent;
+
+			newParent->transT = transT;
+			newParent->transR = transR;
+			newParent->transS = transS;
+
+			this->transR = { 0, 0, 0, 1 };
+			this->transT = { 0, 0, 0 };
+			this->transS = { 1, 1, 1 };
+
+			return newParent;
+		}
+
 		std::shared_ptr<Object> getChild(const std::string& name) const {
 			for (auto sub : children) {
 				if (sub->name == name) return sub;
@@ -136,6 +161,17 @@ namespace LiteEngine::SceneManagement {
 			}
 			
 		}
+
+		DirectX::XMFLOAT3 getWorldPosition() const {
+			auto mat = this->getLocalToWorldMatrix();
+			DirectX::XMFLOAT3 pos;
+			DirectX::XMStoreFloat3(&pos, mat.r[3]); // TRS ¾ØÕó M33 == 1
+			return pos;
+		}
+
+		void setLocalPos(const DirectX::XMFLOAT3& val) {
+			this->transT = val;
+		}
 	};
 
 	struct Material: public Rendering::Material {
@@ -150,29 +186,12 @@ namespace LiteEngine::SceneManagement {
 	};
 
 	struct Camera : public Object {
-		Rendering::RenderingScene::CameraInfo data{};
-	};
+	protected:
 
-	struct Light : public Object {
-		uint32_t type;						// all
-		uint32_t shadow;					// all
-		float innerConeAngle;			    // spot
-		float outerConeAngle;				// spot
-		float maximumDistance;				// spot & point
-		DirectX::XMFLOAT3 direction_L;		// spot & directional
-		DirectX::XMFLOAT3 intensity;		// all
-	};
-
-	struct Scene {
-
-	private:
 		static float signof(float f) {
 			if (f >= 0) return 1;
 			else return -1;
 		}
-	public:
-		std::shared_ptr<Object> rootObject;
-		std::shared_ptr<Camera> activeCamera;
 
 		static DirectX::XMMATRIX setAbsScaleComponentToOne(const DirectX::XMMATRIX& mat) {
 			DirectX::XMVECTOR scale, rotate, translate;
@@ -190,6 +209,79 @@ namespace LiteEngine::SceneManagement {
 				translate
 			);
 		}
+	public:
+		Rendering::RenderingScene::CameraInfo data{};
+
+		bool fixedWorldUp = false;
+
+		enum class FixedWorldDirection {
+			None, LookAtCoord, LookAtObject, LookTo
+		};
+		FixedWorldDirection fixedWorldLookDirection = FixedWorldDirection::None;
+
+		DirectX::XMFLOAT3 worldUp;
+		DirectX::XMFLOAT3 worldLookAtCoord;
+		std::weak_ptr<Object> worldLookAtObject;
+		DirectX::XMFLOAT3 worldLookTo;
+
+		DirectX::XMMATRIX getW2VMatrix(DirectX::XMMATRIX transformMatrix) {
+			auto cameraTrans = setAbsScaleComponentToOne(transformMatrix);
+			auto det = DirectX::XMMatrixDeterminant(cameraTrans);
+			auto trans = DirectX::XMMatrixInverse(&det, cameraTrans);
+
+			auto lookEye = DirectX::XMVector3TransformCoord({ 0, 0, 0 }, transformMatrix);
+			auto lookTo = DirectX::XMVector3TransformNormal({0, 0, 1}, transformMatrix);
+			auto lookUp = DirectX::XMVector3TransformNormal({ 0, 1, 0 }, transformMatrix);
+			DirectX::XMVECTOR lookAt{0, 0, 0, 0};
+			bool lookAtMode = false;
+
+			if (fixedWorldUp) {
+				lookUp = DirectX::XMLoadFloat3(&worldUp);
+			}
+
+			switch (fixedWorldLookDirection) {
+			case FixedWorldDirection::LookTo:
+				lookTo = DirectX::XMLoadFloat3(&worldLookTo);
+				break;
+			case FixedWorldDirection::LookAtObject:
+				lookAtMode = true;
+				auto atObjCoord = this->worldLookAtObject.lock()->getWorldPosition();
+				lookAt = DirectX::XMLoadFloat3(&atObjCoord);
+				break;
+			case FixedWorldDirection::LookAtCoord:
+				lookAtMode = true;
+				lookAt = DirectX::XMLoadFloat3(&worldLookAtCoord);
+				break;
+			case FixedWorldDirection::None:
+				break;
+			}
+			
+			if (lookAtMode) {
+				return DirectX::XMMatrixLookAtRH(lookEye, lookAt, lookUp);
+			} else {
+				return DirectX::XMMatrixLookToRH(lookEye, lookTo, lookUp);
+			}
+
+			assert(false);
+		}
+	};
+
+	struct Light : public Object {
+		uint32_t type;						// all
+		uint32_t shadow;					// all
+		float innerConeAngle;			    // spot
+		float outerConeAngle;				// spot
+		float maximumDistance;				// spot & point
+		DirectX::XMFLOAT3 direction_L;		// spot & directional
+		DirectX::XMFLOAT3 intensity;		// all
+	};
+
+	struct Scene {
+
+	public:
+		std::shared_ptr<Object> rootObject;
+		std::shared_ptr<Camera> activeCamera;
+
 
 		void buildRenderingSceneRecursively(
 			std::shared_ptr<Rendering::RenderingScene> dest,
@@ -230,9 +322,7 @@ namespace LiteEngine::SceneManagement {
 				dest->lights.push_back(lightDesc);
 			} else if (auto camera = std::dynamic_pointer_cast<Camera>(node); camera && camera->name == activeCamera->name) {
 				dest->camera = camera->data;
-				auto cameraTrans = setAbsScaleComponentToOne(newTransform);
-				auto det = DirectX::XMMatrixDeterminant(cameraTrans);
-				dest->camera.trans_W2V = DirectX::XMMatrixInverse(&det, cameraTrans);
+				dest->camera.trans_W2V = camera->getW2VMatrix(newTransform);
 			}
 
 			for (auto child : node->children) {
@@ -241,10 +331,8 @@ namespace LiteEngine::SceneManagement {
 		}
 
 		Rendering::RenderingScene::CameraInfo getCameraInfo(std::shared_ptr<Camera> camera) {
-			auto mat = setAbsScaleComponentToOne(camera->getLocalToWorldMatrix());
-			auto det = DirectX::XMMatrixDeterminant(mat);
 			auto out = camera->data;
-			out.trans_W2V = DirectX::XMMatrixInverse(&det, mat);
+			out.trans_W2V = camera->getW2VMatrix(camera->getLocalToWorldMatrix());
 			return out;
 		}
 
