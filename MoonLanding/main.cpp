@@ -74,7 +74,7 @@ class MoonLandingGame {
 		objSum = io::loadDefaultResourceGLTF("Earth_10m.glb");
 		objEarth = io::loadDefaultResourceGLTF("Earth_10m.glb");
 		objMoon = io::loadDefaultResourceGLTF("Moon_10m.glb");
-		objShip = io::loadDefaultResourceGLTF("Spaceship_50cm.glb");
+		objShip = io::loadDefaultResourceGLTF("Spaceship_5cm.glb");
 	}
 
 	void createFreeCamera() {
@@ -134,20 +134,20 @@ class MoonLandingGame {
 	}
 
 	void moveCameraShipFree(const std::vector<std::tuple<UINT, WPARAM, LPARAM>>& events) {
-		float lastDuration = float(1 / renderer->getCurrentFPS());
+		float lastDuration = renderer->getLastFrameDuration();
 		cmShipFreeRotate.receiveEvent(events, lastDuration);
 		cmShipFreeMoveX.receiveEvent(events, lastDuration);
 		cmShipFreeMoveY.receiveEvent(events, lastDuration);
 		cmShipFreeMoveZ.receiveEvent(events, lastDuration);
-
+		
 		auto [rx, ry, rz] = cmShipFreeRotate.getXYZ();
 		cmShipFreeYawLayer->moveLocalCoord({ 
-			cmShipFreeMoveX.popValue(), 
-			cmShipFreeMoveY.popValue(),
-			cmShipFreeMoveZ.popValue(),
+			(float)cmShipFreeMoveX.popValue(), 
+			(float)cmShipFreeMoveY.popValue(),
+			(float)cmShipFreeMoveZ.popValue(),
 		});
-		cmShipFreeYawLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, rx);
-		cmShipFreePitchLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, ry);
+		cmShipFreeYawLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, (float)rx);
+		cmShipFreePitchLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (float)ry);
 	}
 
 	void updateWindowTitle() {
@@ -162,15 +162,15 @@ class MoonLandingGame {
 		// 飞行器绕地球的转动
 		// 距离对应角度
 
-		float duration = (float)(1 / renderer->getCurrentFPS());
-		float timePerCycle = 20;
+		double duration = renderer->getLastFrameDuration();
+		double timePerCycle = 20;
 
 		// delta angle
 		auto deltaAngle = duration / timePerCycle * le::PI * 2;
 		auto deltaPos = deltaAngle * (EarthRadius + OrbitHeight);
 
-	//	objShipCameraSys->moveLocalCoord({0, 0, deltaPos / 2 / le::PI});
-		objShipCameraSys->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0}, deltaAngle));
+		objShipCameraSys->moveLocalCoord({0, 0, (float)deltaPos});
+		objShipCameraSys->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0}, (float)deltaAngle));
 	}
 
 	void renderCallback(const io::RenderingWindow&, const std::vector<std::tuple<UINT, WPARAM, LPARAM>>& events) {

@@ -142,27 +142,27 @@ namespace LiteEngine::IO {
 		}
 
 	public:
-		float accX = 0;
-		float accY = 0;
-		float accZ = 0;
+		double accX = 0;
+		double accY = 0;
+		double accZ = 0;
 
-		float xSensitivity = 0.003f;
-		float ySensitivity = 0.003f;
-		float zSensitivity = 0.003f;
+		double xSensitivity = 0.003f;
+		double ySensitivity = 0.003f;
+		double zSensitivity = 0.003f;
 
-		float Ymin = - float(0.9 * PI / 2);
-		float Ymax = + float(0.9 * PI / 2);
+		double Ymin = - double(0.9 * PI / 2);
+		double Ymax = + double(0.9 * PI / 2);
 
-		float zMin = -1;
-		float zMax = 1;
+		double zMin = -1;
+		double zMax = 1;
 
-		std::tuple<float, float, float> getXYZ() {
+		std::tuple<double, double, double> getXYZ() {
 			return { accX, accY, accZ };
 		}
 
 		void receiveEvent(
 			const std::vector<std::tuple<UINT, WPARAM, LPARAM>>& events, 
-			float lastFrameDuration
+			double lastFrameDuration
 		) {
 			for (auto& [msg, wparam, lparam] : events) {
 				switch (msg) {

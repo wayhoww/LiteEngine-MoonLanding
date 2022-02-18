@@ -350,6 +350,7 @@ namespace LiteEngine::Rendering {
 		double currentFPS = -1;
 		double averageFPS = -1;
 		double desiredFPS = 0;
+		double lastFrameDuration = 0;
 
 
 		uint64_t id = 0;
@@ -770,21 +771,6 @@ namespace LiteEngine::Rendering {
 		}
 
 		void beginRendering() {
-			// https://docs.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps
-			LARGE_INTEGER currentTime;
-			QueryPerformanceCounter(&currentTime);
-			auto elapsedTicks = currentTime.QuadPart - this->time_in_ticks;
-			this->time_in_ticks = currentTime.QuadPart;
-
-			if (this->currentFPS < 0) {
-				this->currentFPS = this->desiredFPS > 0 ? this->desiredFPS : 60;
-				this->averageFPS = this->currentFPS;
-			} else {
-				this->currentFPS = 1.0 / elapsedTicks * this->timer_frequency;
-				this->averageFPS = this->averageFPS * 0.95 + this->currentFPS * (1 - 0.95);
-			}
-
-
 			if (this->autoAdjustSize) {
 				this->resizeFitWindow();
 			}
@@ -869,6 +855,10 @@ namespace LiteEngine::Rendering {
 			}
 		}
 
+		double getLastFrameDuration() {
+			return this->lastFrameDuration;
+		}
+
 	protected:
 		void clearShaderResourcesAndSamplers() {
 			static ID3D11ShaderResourceView* nullViews[16] = {};
@@ -887,6 +877,23 @@ namespace LiteEngine::Rendering {
 				(uint32_t)std::round(this->shadowHeight)
 			);
 		}
+
+		void updateTime() {
+			// https://docs.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps
+			LARGE_INTEGER currentTime;
+			QueryPerformanceCounter(&currentTime);
+			auto elapsedTicks = currentTime.QuadPart - this->time_in_ticks;
+			this->time_in_ticks = currentTime.QuadPart;
+
+			if (this->currentFPS < 0) {
+				this->currentFPS = this->desiredFPS > 0 ? this->desiredFPS : 60;
+				this->averageFPS = this->currentFPS;
+			} else {
+				this->lastFrameDuration = 1.0 * elapsedTicks / this->timer_frequency;
+				this->currentFPS = 1.0 / elapsedTicks * this->timer_frequency;
+				this->averageFPS = this->averageFPS * 0.95 + this->currentFPS * (1 - 0.95);
+			}
+		}
 	public:
 		void renderScene(
 			std::shared_ptr<RenderingScene> scene,
@@ -904,6 +911,8 @@ namespace LiteEngine::Rendering {
 
 		void swap() {
 			swapChain->Present(0, 0);
+
+			this->updateTime();
 		}
 
 	};
