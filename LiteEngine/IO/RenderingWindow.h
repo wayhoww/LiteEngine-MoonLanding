@@ -6,7 +6,7 @@
 #include <Windows.h>
 
 
-namespace LiteEngine {
+namespace LiteEngine::IO {
 
 struct WindowSize {
 	uint32_t width;

@@ -1,7 +1,7 @@
 #include "RenderingWindow.h"
 #include <Windows.h>
 
-namespace LiteEngine {
+namespace LiteEngine::IO {
 
 LRESULT CALLBACK RenderingWindow::windowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	if (msg == WM_CREATE) {

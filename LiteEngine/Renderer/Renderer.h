@@ -770,10 +770,6 @@ namespace LiteEngine::Rendering {
 		}
 
 		void beginRendering() {
-			if (this->autoAdjustSize) {
-				this->resizeFitWindow();
-			}
-
 			// https://docs.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps
 			LARGE_INTEGER currentTime;
 			QueryPerformanceCounter(&currentTime);
@@ -788,7 +784,16 @@ namespace LiteEngine::Rendering {
 				this->averageFPS = this->averageFPS * 0.95 + this->currentFPS * (1 - 0.95);
 			}
 
+
+			if (this->autoAdjustSize) {
+				this->resizeFitWindow();
+			}
+
 			this->clearShaderResourcesAndSamplers();
+
+			float bgColor[4] = { 0, 0, 0, 1 };
+			context->ClearRenderTargetView(this->renderTargetView.Get(), bgColor);
+			context->ClearDepthStencilView(this->depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
 		}
 
 		void renderPasses(

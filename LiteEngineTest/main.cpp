@@ -33,7 +33,7 @@ int WINAPI wWinMain(
 	namespace ler = le::Rendering;
 	namespace lesm = le::SceneManagement;
 
-	le::RenderingWindow window(
+	le::IO::RenderingWindow window(
 		L"Rendering Window", 
 		WS_OVERLAPPEDWINDOW ^ WS_SIZEBOX ^ WS_MAXIMIZEBOX,
 		0, 0, 500, 500);
@@ -125,8 +125,8 @@ int WINAPI wWinMain(
 	le::IO::MoveController moveEC('E', 'C');
 
 	window.renderCallback = [&](
-		const le::RenderingWindow& window,
-		const std::vector<le::RenderingWindow::EventType>& events
+		const le::IO::RenderingWindow& window,
+		const std::vector<le::IO::RenderingWindow::EventType>& events
 		) {
 
 		auto duration = (float)(1. / renderer.getCurrentFPS());

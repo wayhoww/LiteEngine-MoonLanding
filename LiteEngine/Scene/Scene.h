@@ -27,6 +27,14 @@ namespace LiteEngine::SceneManagement {
 		DirectX::XMVECTOR transR{0, 0, 0, 1};
 		DirectX::XMFLOAT3 transS{1, 1, 1};
 
+		Object() = default;
+		Object(const std::string& name) :name(name) {}
+
+		void link(std::shared_ptr<Object> self, std::shared_ptr<Object> parent = nullptr) {
+			this->parent = parent;
+			for (auto child : children) child->link(child, self);
+		}
+
 		DirectX::XMMATRIX getTransformMatrix() const {
 			return DirectX::XMMatrixAffineTransformation(
 				{ transS.x, transS.y, transS.z, 1 },
@@ -37,7 +45,7 @@ namespace LiteEngine::SceneManagement {
 		}
 
 		std::shared_ptr<Object> insertParent() {
-			if (this->parent.expired()) {
+			if (this->parent.lock() == nullptr) {
 				return nullptr;
 			}
 
@@ -179,6 +187,13 @@ namespace LiteEngine::SceneManagement {
 			return pos;
 		}
 
+		void setTransformMatrix(const DirectX::XMMATRIX mat) {
+			DirectX::XMVECTOR scale, translate;
+			DirectX::XMMatrixDecompose(&scale, &this->transR, &translate, mat);
+			DirectX::XMStoreFloat3(&this->transS, scale);
+			DirectX::XMStoreFloat3(&this->transT, translate);
+		}
+
 		void setLocalPos(const DirectX::XMFLOAT3& val) {
 			this->transT = val;
 		}
@@ -265,9 +280,6 @@ namespace LiteEngine::SceneManagement {
 
 		DirectX::XMMATRIX getW2VMatrix(DirectX::XMMATRIX transformMatrix) {
 			auto cameraTrans = setAbsScaleComponentToOne(transformMatrix);
-			auto det = DirectX::XMMatrixDeterminant(cameraTrans);
-			auto trans = DirectX::XMMatrixInverse(&det, cameraTrans);
-			return trans;
 
 			auto lookEye = DirectX::XMVector3TransformCoord({ 0, 0, 0 }, transformMatrix);
 			auto lookTo = DirectX::XMVector3TransformNormal({0, 0, 1}, transformMatrix);
@@ -307,11 +319,14 @@ namespace LiteEngine::SceneManagement {
 	};
 
 	struct Light : public Object {
+		Light() = default;
+		Light(const std::string& name) : Object(name) {}
+
 		uint32_t type;						// all
 		uint32_t shadow;					// all
 		float innerConeAngle;			    // spot
 		float outerConeAngle;				// spot
-		float maximumDistance;				// spot & point
+		float maximumDistance = std::numeric_limits<float>::infinity();				// spot & point
 		DirectX::XMFLOAT3 direction_L;		// spot & directional
 		DirectX::XMFLOAT3 intensity;		// all
 	};
@@ -321,6 +336,10 @@ namespace LiteEngine::SceneManagement {
 	public:
 		std::shared_ptr<Object> rootObject;
 		std::shared_ptr<Camera> activeCamera;
+
+		void link() {
+			if(rootObject) rootObject->link(rootObject);
+		}
 
 
 		void buildRenderingSceneRecursively(
@@ -360,7 +379,7 @@ namespace LiteEngine::SceneManagement {
 				lightDesc.position_W = { trans.x, trans.y, trans.z };
 
 				dest->lights.push_back(lightDesc);
-			} else if (auto camera = std::dynamic_pointer_cast<Camera>(node); camera && camera->name == activeCamera->name) {
+			} else if (auto camera = std::dynamic_pointer_cast<Camera>(node); camera && camera == activeCamera) {
 				dest->camera = camera->data;
 				dest->camera.trans_W2V = camera->getW2VMatrix(newTransform);
 			}

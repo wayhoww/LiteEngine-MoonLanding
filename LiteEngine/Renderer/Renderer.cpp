@@ -89,7 +89,6 @@ namespace LiteEngine::Rendering {
 		viewport.MinDepth = 0;
 		pass->viewport = viewport;
 
-
 		pass->CSMDepthMapSampler = this->getShadowMapSamplerState();
 		pass->CSMDepthMapArray = this->shadowDepthBuffer;
 

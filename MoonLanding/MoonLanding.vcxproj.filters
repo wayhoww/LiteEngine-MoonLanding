@@ -22,4 +22,9 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="Resources\Earth_10m.glb" />
+    <CopyFileToFolders Include="Resources\Moon_10m.glb" />
+    <CopyFileToFolders Include="Resources\Spaceship_5cm.glb" />
+  </ItemGroup>
 </Project>
