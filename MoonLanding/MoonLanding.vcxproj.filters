@@ -35,5 +35,6 @@
     <CopyFileToFolders Include="Resources\Spaceship_5cm.glb">
       <Filter>Resource Files</Filter>
     </CopyFileToFolders>
+    <CopyFileToFolders Include="Resources\Sun_10m.glb" />
   </ItemGroup>
 </Project>

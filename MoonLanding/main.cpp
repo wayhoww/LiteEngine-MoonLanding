@@ -66,7 +66,7 @@ class MoonLandingGame {
 	MoonLandingGame(): window(
 		L"Rendering Window", 
 		WS_OVERLAPPEDWINDOW ^ WS_SIZEBOX ^ WS_MAXIMIZEBOX,
-		0, 0, 500, 500), 
+		0, 0, 1500, 1500), 
 		framerateController(55, io::FramerateControlling::WaitableObject)
 	{
 		rd::Renderer::setHandle(window.getHwnd());
@@ -78,7 +78,7 @@ class MoonLandingGame {
 	}
 
 	void loadResources() {
-		objSum = io::loadDefaultResourceGLTF("Earth_10m.glb");
+		objSum = io::loadDefaultResourceGLTF("Sun_10m.glb");
 		objEarth = io::loadDefaultResourceGLTF("Earth_10m.glb");
 		objMoon = io::loadDefaultResourceGLTF("Moon_10m.glb");
 		objShip = io::loadDefaultResourceGLTF("Spaceship_5cm.glb");
@@ -243,6 +243,8 @@ int WINAPI wWinMain(
 	_In_ PWSTR pCmdLine, 
 	_In_ int nCmdShow
 ) {
+	SetProcessDPIAware();
+
 	auto& game = MoonLandingGame::getInstance();
 	game.lanuch();
 }

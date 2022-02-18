@@ -112,6 +112,9 @@
     <CopyFileToFolders Include="Resources\Spaceship_5cm.glb">
       <FileType>Document</FileType>
     </CopyFileToFolders>
+    <CopyFileToFolders Include="Resources\Sun_10m.glb">
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Update="C:\Users\wweih\source\repos\MoonLanding\LiteEngine\LiteEngine\Shader\BasicMaterialPSWithoutNormalMap.hlsl">
