@@ -3,9 +3,12 @@
 #include <Windows.h>
 #include <iostream>
 
+#pragma comment(lib, "Winmm")
+
 namespace LiteEngine::IO {
 
     enum class FramerateControlling {
+        GiveUp,
         WaitableObject,
         Spin
     };
@@ -47,14 +50,28 @@ namespace LiteEngine::IO {
 
         FramerateController(
             double desiredFPS, 
-            FramerateControlling cont = FramerateControlling::WaitableObject
+            FramerateControlling cont = FramerateControlling::GiveUp
         ): method(cont) {
+
+            static std::once_flag initTimerFlag;
+            if (cont == FramerateControlling::WaitableObject) {
+                std::call_once(initTimerFlag, []() {
+                    // 可以不一直占用 CPU 并进行高精度的帧率控制
+                    TIMECAPS tc;
+                    if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) != TIMERR_NOERROR) {
+                        throw std::exception("cannot get timeing info");
+                    }
+                    timeBeginPeriod(std::min(std::max(tc.wPeriodMin, 1u), tc.wPeriodMax));
+                });
+            }
+            
+
             LARGE_INTEGER fCount;
             QueryPerformanceFrequency(&fCount);
             this->frequencyCount = fCount.QuadPart;
             this->averageFPS = desiredFPS;
             this->desiredDuration = std::llround(this->frequencyCount / desiredFPS);
-            if (!(timer = CreateWaitableTimer(NULL, TRUE, NULL)))
+            if (!(timer = CreateWaitableTimer(nullptr, true, nullptr)))
                 throw std::exception("cannot create timer");
         }
 
@@ -109,11 +126,14 @@ namespace LiteEngine::IO {
                     }
                     WaitForSingleObject(timer, INFINITE);
                 }
-            } else {
+            } else if(method == FramerateControlling::Spin) {
                 while (elapsedTime < this->desiredDuration) {
                     QueryPerformanceCounter(&currentTime);
                     elapsedTime = this->accTime + getPositiveTime(currentTime.QuadPart - this->lastTime);
                 }
+            } else {
+                // == FramerateControlling::GiveUp
+                // do nothing
             }
 
             QueryPerformanceCounter(&currentTime);

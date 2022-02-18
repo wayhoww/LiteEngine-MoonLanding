@@ -64,7 +64,7 @@ class MoonLandingGame {
 		L"Rendering Window", 
 		WS_OVERLAPPEDWINDOW ^ WS_SIZEBOX ^ WS_MAXIMIZEBOX,
 		0, 0, 500, 500), 
-		framerateController(60)
+		framerateController(55, io::FramerateControlling::WaitableObject)
 	{
 		rd::Renderer::setHandle(window.getHwnd());
 		renderer = &rd::Renderer::getInstance();
