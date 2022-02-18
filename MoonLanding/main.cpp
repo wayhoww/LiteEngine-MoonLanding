@@ -30,6 +30,7 @@ class MoonLandingGame {
 
 	rd::Renderer* renderer;
 	io::RenderingWindow window;
+	// framerate controller 提供额外的帧率控制，也提供帧率信息
 	io::FramerateController framerateController;
 
 	std::shared_ptr<sm::Scene> scene;
@@ -44,6 +45,7 @@ class MoonLandingGame {
 	std::shared_ptr<sm::Object> objRoot;
 
 	// camera-related
+	static constexpr float CMShipFreeFOV = le::PI / 2;
 	std::shared_ptr<sm::Camera> cmShipFree;		// 相对飞船，自由移动
 	std::shared_ptr<sm::Object> cmShipFreePitchLayer;
 	std::shared_ptr<sm::Object> cmShipFreeYawLayer;
@@ -61,7 +63,8 @@ class MoonLandingGame {
 	MoonLandingGame(): window(
 		L"Rendering Window", 
 		WS_OVERLAPPEDWINDOW ^ WS_SIZEBOX ^ WS_MAXIMIZEBOX,
-		0, 0, 500, 500), framerateController(60)
+		0, 0, 500, 500), 
+		framerateController(60)
 	{
 		rd::Renderer::setHandle(window.getHwnd());
 		renderer = &rd::Renderer::getInstance();
@@ -84,7 +87,7 @@ class MoonLandingGame {
 		cmShipFree->data.nearZ = 0.1f;
 		cmShipFree->data.farZ = 1000;
 		cmShipFree->data.aspectRatio = 1; // TODO
-		cmShipFree->data.fieldOfViewYRadian = le::PI / 2;
+		cmShipFree->data.fieldOfViewYRadian = CMShipFreeFOV;
 	}
 
 	void createLights() {
@@ -110,6 +113,7 @@ class MoonLandingGame {
 		objEarthMoonSys = std::shared_ptr<sm::Object>(new sm::Object("EarthMoonSystem"));
 		objRoot = std::shared_ptr<sm::Object>(new sm::Object("SceneRoot"));
 
+		objSum->multiplyScale({ SumRadius / 10, SumRadius / 10, SumRadius / 10 });
 		objEarth->multiplyScale({ EarthRadius / 10, EarthRadius / 10, EarthRadius / 10 });
 		objMoon->multiplyScale({ MoonRadius / 10, MoonRadius / 10, MoonRadius / 10 });
 		objShip->multiplyScale({ SpaceshipHeight / 0.05f, SpaceshipHeight / 0.05f, SpaceshipHeight / 0.05f });
@@ -132,10 +136,13 @@ class MoonLandingGame {
 		cmShipFreeYawLayer = cmShipFreePitchLayer->insertParent();
 		cmShipFreePitchLayer->moveParentCoord({ 0, SpaceshipHeight	* 0.5, 0 });
 
+		updateLights();
 	}
 
 	void moveCameraShipFree(const std::vector<std::tuple<UINT, WPARAM, LPARAM>>& events) {
-		/*cmShipFreeRotate.receiveEvent(events, lastDuration);
+		auto lastDuration = (float)framerateController.getLastFrameDuration();
+
+		cmShipFreeRotate.receiveEvent(events, lastDuration);
 		cmShipFreeMoveX.receiveEvent(events, lastDuration);
 		cmShipFreeMoveY.receiveEvent(events, lastDuration);
 		cmShipFreeMoveZ.receiveEvent(events, lastDuration);
@@ -147,13 +154,14 @@ class MoonLandingGame {
 			(float)cmShipFreeMoveZ.popValue(),
 		});
 		cmShipFreeYawLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, (float)rx);
-		cmShipFreePitchLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (float)ry);*/
+		cmShipFreePitchLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (float)ry);
+		cmShipFree->data.fieldOfViewYRadian = (float) std::min<double>(le::PI * 0.8, CMShipFreeFOV * (0.5 + (rz + 1) / 2));
 	}
 
 	void updateWindowTitle() {
-		/*wchar_t titleBuffer[50];
-		swprintf_s(titleBuffer, L"%5.0f", averageFPS);
-		SetWindowText(window.getHwnd(), titleBuffer);*/
+		wchar_t titleBuffer[50];
+		swprintf_s(titleBuffer, L"%5.0lf", framerateController.getAverageFPS());
+		SetWindowText(window.getHwnd(), titleBuffer);
 	}
 
 	void updateAnimation() {
@@ -161,19 +169,21 @@ class MoonLandingGame {
 		// 飞行器绕地球的转动
 		// 距离对应角度
 
-		//double duration = renderer->getLastFrameDuration();
-		//double timePerCycle = 20;
+		double duration = framerateController.getLastFrameDuration();
+		double timePerCycle = 20;
 
-		//// delta angle
-		//auto deltaAngle = duration / timePerCycle * le::PI * 2;
-		//auto deltaPos = deltaAngle * (EarthRadius + OrbitHeight);
+		// delta angle
+		auto deltaAngle = duration / timePerCycle * le::PI * 2;
+		auto deltaPos = deltaAngle * (EarthRadius + OrbitHeight);
 
-		//objShipCameraSys->moveLocalCoord({0, 0, (float)deltaPos});
-		//objShipCameraSys->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0}, (float)deltaAngle));
+		objShipCameraSys->moveLocalCoord({0, 0, (float)deltaPos});
+		objShipCameraSys->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0}, (float)deltaAngle));
 	}
 
 	void renderCallback(const io::RenderingWindow&, const std::vector<std::tuple<UINT, WPARAM, LPARAM>>& events) {
-		
+		// 额外调用 begin 无害
+		framerateController.begin();
+
 		for (auto [msg, wparam, lparam]: events) {
 			if (msg == WM_KEYDOWN && wparam == VK_SPACE) {
 				objRoot->dump();
@@ -182,23 +192,17 @@ class MoonLandingGame {
 
 		updateWindowTitle();
 
-		static int warmUpFrames = 5;
-
-		if (warmUpFrames == 0) {
-			updateAnimation();
-			moveCameraShipFree(events);
-			updateLights();
-		} else {
-			warmUpFrames--;
-		}
+		updateAnimation();
+		moveCameraShipFree(events);
+		updateLights();
 
 
 		auto rScene = scene->getRenderingScene();
 
-		//framerateController.waitForNextFrame(renderer->getLastFrameDuration());
 		renderer->beginRendering();
 		renderer->renderScene(rScene, false);
 		renderer->swap();
+		framerateController.wait();
 	}
 
 	void start() {
