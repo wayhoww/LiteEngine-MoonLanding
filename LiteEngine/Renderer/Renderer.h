@@ -104,8 +104,6 @@ namespace LiteEngine::Rendering {
 		DirectX::XMMATRIX trans_V2W;
 		DirectX::XMMATRIX trans_V2C;
 		DirectX::XMMATRIX trans_W2C;
-		float timeInSecond;
-		float currentFPS;
 	};
 
 	struct alignas(16) FixedPerframePSConstantBufferData {
@@ -113,10 +111,11 @@ namespace LiteEngine::Rendering {
 		DirectX::XMMATRIX trans_W2V;
 		DirectX::XMMATRIX trans_V2W;
 
-		float timeInSecond;
-		float currentFPS;
 		float exposure;
 		uint32_t numberOfLights;
+	private:
+		char space[2];
+	public:
 
 		LightDesc lights[MAX_NUMBER_OF_LIGHTS];
 
@@ -345,21 +344,7 @@ namespace LiteEngine::Rendering {
 
 		uint32_t width = 0, height = 0;
 
-		int64_t time_in_ticks = 0;
-		int64_t timer_frequency;
-		double currentFPS = -1;
-		double averageFPS = -1;
-		double desiredFPS = 0;
-		double lastFrameDuration = 0;
-
-
-		uint64_t id = 0;
-
 		void updateFixedPerframeConstantBuffers(const RenderingScene& scene) const {
-
-			float timeInSecond = 1.0f * time_in_ticks / timer_frequency;
-			float currentFPS = (float)this->currentFPS;
-
 			auto& camera = scene.camera;
 
 			auto transDet_V2W = DirectX::XMMatrixDeterminant(camera.trans_W2V);
@@ -375,8 +360,6 @@ namespace LiteEngine::Rendering {
 				data.trans_V2C = camera.getV2CMatrix();
 
 				data.trans_W2C = DirectX::XMMatrixMultiply(data.trans_W2V, data.trans_V2C);
-				data.timeInSecond = timeInSecond;
-				data.currentFPS = currentFPS;
 
 				this->fixedPerframeVSConstantBuffer->updateBuffer(this->context.Get());
 			}
@@ -388,8 +371,6 @@ namespace LiteEngine::Rendering {
 				data.trans_W2V = camera.trans_W2V;
 				data.trans_V2W = trans_V2W;
 
-				data.timeInSecond = timeInSecond;
-				data.currentFPS = currentFPS;
 				data.exposure = this->exposure;
 
 				auto numberOfLights = scene.lights.size();
@@ -429,8 +410,6 @@ namespace LiteEngine::Rendering {
 	protected:
 		Renderer(HWND windowHwnd) {
 			// TODO MSAA. 这不是一个特别容易的事情。。
-			static uint64_t idCounter = 0;
-			this->id = idCounter++;
 
 			RECT rect;
 			GetClientRect(windowHwnd, &rect);
@@ -488,10 +467,6 @@ namespace LiteEngine::Rendering {
 			this->fixedPerframePSConstantBuffer = this->createConstantBuffer(FixedPerframePSConstantBufferData());
 			// TODO: 下面的 designed fps 没有设置
 			this->fixedLongtermConstantBuffer = this->createConstantBuffer(FixedLongtermConstantBufferData{ (float)this->width, (float)this->height, (float)30 });
-
-			LARGE_INTEGER frequency;
-			QueryPerformanceFrequency(&frequency);
-			this->timer_frequency = frequency.QuadPart;
 		}
 
 		void recreateDepthStencilView() {
@@ -762,14 +737,6 @@ namespace LiteEngine::Rendering {
 				fixedConstantBuffer->getSharedInstance(), customConstantBuffer));
 		}
 
-		double getCurrentFPS() const {
-			return this->currentFPS;
-		}
-
-		double getAverageFPS() const {
-			return this->averageFPS;
-		}
-
 		void beginRendering() {
 			if (this->autoAdjustSize) {
 				this->resizeFitWindow();
@@ -855,10 +822,6 @@ namespace LiteEngine::Rendering {
 			}
 		}
 
-		double getLastFrameDuration() {
-			return this->lastFrameDuration;
-		}
-
 	protected:
 		void clearShaderResourcesAndSamplers() {
 			static ID3D11ShaderResourceView* nullViews[16] = {};
@@ -878,22 +841,6 @@ namespace LiteEngine::Rendering {
 			);
 		}
 
-		void updateTime() {
-			// https://docs.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps
-			LARGE_INTEGER currentTime;
-			QueryPerformanceCounter(&currentTime);
-			auto elapsedTicks = currentTime.QuadPart - this->time_in_ticks;
-			this->time_in_ticks = currentTime.QuadPart;
-
-			if (this->currentFPS < 0) {
-				this->currentFPS = this->desiredFPS > 0 ? this->desiredFPS : 60;
-				this->averageFPS = this->currentFPS;
-			} else {
-				this->lastFrameDuration = 1.0 * elapsedTicks / this->timer_frequency;
-				this->currentFPS = 1.0 / elapsedTicks * this->timer_frequency;
-				this->averageFPS = this->averageFPS * 0.95 + this->currentFPS * (1 - 0.95);
-			}
-		}
 	public:
 		void renderScene(
 			std::shared_ptr<RenderingScene> scene,
@@ -910,9 +857,7 @@ namespace LiteEngine::Rendering {
 		}
 
 		void swap() {
-			swapChain->Present(0, 0);
-
-			this->updateTime();
+			swapChain->Present(1, 0);
 		}
 
 	};

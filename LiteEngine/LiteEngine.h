@@ -3,6 +3,7 @@
 #include "IO/CameraController.h"
 #include "IO/DefaultLoader.h"
 #include "IO/RenderingWindow.h"
+#include "IO/FramerateController.h"
 
 #include "Renderer/Renderer.h"
 #include "Renderer/Resources.h"

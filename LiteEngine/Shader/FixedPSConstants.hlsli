@@ -28,10 +28,9 @@ cbuffer FixedPerframePSConstantBufferData : register(b4) {
 	matrix trans_W2V;
 	matrix trans_V2W;
 
-	float timeInSecond;
-	float currentFPS;
 	float exposure;
-	uint numberOfLights; // space of 4bytes.
+	uint numberOfLights; 
+	// space
 
 	Light lights[MAX_NUMBER_OF_LIGHTS];
 

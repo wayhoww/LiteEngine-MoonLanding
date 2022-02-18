@@ -77,6 +77,9 @@
     <ClInclude Include="LiteEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="IO\FramerateController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Renderer\README.md" />

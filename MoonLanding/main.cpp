@@ -30,6 +30,7 @@ class MoonLandingGame {
 
 	rd::Renderer* renderer;
 	io::RenderingWindow window;
+	io::FramerateController framerateController;
 
 	std::shared_ptr<sm::Scene> scene;
 
@@ -60,7 +61,7 @@ class MoonLandingGame {
 	MoonLandingGame(): window(
 		L"Rendering Window", 
 		WS_OVERLAPPEDWINDOW ^ WS_SIZEBOX ^ WS_MAXIMIZEBOX,
-		0, 0, 500, 500)
+		0, 0, 500, 500), framerateController(60)
 	{
 		rd::Renderer::setHandle(window.getHwnd());
 		renderer = &rd::Renderer::getInstance();
@@ -134,8 +135,7 @@ class MoonLandingGame {
 	}
 
 	void moveCameraShipFree(const std::vector<std::tuple<UINT, WPARAM, LPARAM>>& events) {
-		float lastDuration = renderer->getLastFrameDuration();
-		cmShipFreeRotate.receiveEvent(events, lastDuration);
+		/*cmShipFreeRotate.receiveEvent(events, lastDuration);
 		cmShipFreeMoveX.receiveEvent(events, lastDuration);
 		cmShipFreeMoveY.receiveEvent(events, lastDuration);
 		cmShipFreeMoveZ.receiveEvent(events, lastDuration);
@@ -147,14 +147,13 @@ class MoonLandingGame {
 			(float)cmShipFreeMoveZ.popValue(),
 		});
 		cmShipFreeYawLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, (float)rx);
-		cmShipFreePitchLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (float)ry);
+		cmShipFreePitchLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (float)ry);*/
 	}
 
 	void updateWindowTitle() {
-		float averageFPS = (float)renderer->getAverageFPS();
-		wchar_t titleBuffer[50];
+		/*wchar_t titleBuffer[50];
 		swprintf_s(titleBuffer, L"%5.0f", averageFPS);
-		SetWindowText(window.getHwnd(), titleBuffer);
+		SetWindowText(window.getHwnd(), titleBuffer);*/
 	}
 
 	void updateAnimation() {
@@ -162,15 +161,15 @@ class MoonLandingGame {
 		// 飞行器绕地球的转动
 		// 距离对应角度
 
-		double duration = renderer->getLastFrameDuration();
-		double timePerCycle = 20;
+		//double duration = renderer->getLastFrameDuration();
+		//double timePerCycle = 20;
 
-		// delta angle
-		auto deltaAngle = duration / timePerCycle * le::PI * 2;
-		auto deltaPos = deltaAngle * (EarthRadius + OrbitHeight);
+		//// delta angle
+		//auto deltaAngle = duration / timePerCycle * le::PI * 2;
+		//auto deltaPos = deltaAngle * (EarthRadius + OrbitHeight);
 
-		objShipCameraSys->moveLocalCoord({0, 0, (float)deltaPos});
-		objShipCameraSys->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0}, (float)deltaAngle));
+		//objShipCameraSys->moveLocalCoord({0, 0, (float)deltaPos});
+		//objShipCameraSys->rotateLocalCoord(DirectX::XMQuaternionRotationAxis({0, -1, 0}, (float)deltaAngle));
 	}
 
 	void renderCallback(const io::RenderingWindow&, const std::vector<std::tuple<UINT, WPARAM, LPARAM>>& events) {
@@ -196,6 +195,7 @@ class MoonLandingGame {
 
 		auto rScene = scene->getRenderingScene();
 
+		//framerateController.waitForNextFrame(renderer->getLastFrameDuration());
 		renderer->beginRendering();
 		renderer->renderScene(rScene, false);
 		renderer->swap();

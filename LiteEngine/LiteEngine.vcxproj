@@ -121,6 +121,7 @@
   <ItemGroup>
     <ClInclude Include="IO\CameraController.h" />
     <ClInclude Include="IO\DefaultLoader.h" />
+    <ClInclude Include="IO\FramerateController.h" />
     <ClInclude Include="LiteEngine.h" />
     <ClInclude Include="Renderer\Renderer.h" />
     <ClInclude Include="Renderer\Resources.h" />
