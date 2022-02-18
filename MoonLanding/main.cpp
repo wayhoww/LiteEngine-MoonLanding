@@ -35,6 +35,9 @@ class MoonLandingGame {
 
 	std::shared_ptr<sm::Scene> scene;
 
+	// textures
+	rd::PtrShaderResourceView texSkymap;
+
 	// mesh-related
 	std::shared_ptr<sm::Object> objSum;
 	std::shared_ptr<sm::Object> objMoon;
@@ -79,6 +82,7 @@ class MoonLandingGame {
 		objEarth = io::loadDefaultResourceGLTF("Earth_10m.glb");
 		objMoon = io::loadDefaultResourceGLTF("Moon_10m.glb");
 		objShip = io::loadDefaultResourceGLTF("Spaceship_5cm.glb");
+		texSkymap = renderer->createCubeMapFromDDS(L"skymap.dds");
 	}
 
 	void createFreeCamera() {
@@ -201,6 +205,9 @@ class MoonLandingGame {
 
 		renderer->beginRendering();
 		renderer->renderScene(rScene, false);
+
+		renderer->renderSkybox(this->texSkymap, rScene->camera, DirectX::XMMatrixIdentity());
+
 		renderer->swap();
 		framerateController.wait();
 	}

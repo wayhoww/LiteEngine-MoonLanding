@@ -280,7 +280,7 @@ namespace LiteEngine::Rendering {
 			std::shared_ptr<RenderingScene>& scene
 		);
 
-		std::shared_ptr<RenderingPass> createSkyboxRenderingPass(
+		std::shared_ptr<RenderingPass> getSkyboxRenderingPass(
 			PtrShaderResourceView skyboxTexture,
 			const RenderingScene::CameraInfo& camera,
 			DirectX::XMMATRIX skyboxTransform
@@ -852,7 +852,7 @@ namespace LiteEngine::Rendering {
 			const RenderingScene::CameraInfo& camera,
 			DirectX::XMMATRIX skyboxTransform = DirectX::XMMatrixIdentity()
 		) {
-			auto pass = this->createSkyboxRenderingPass(skyboxTexture, camera, skyboxTransform);
+			auto pass = this->getSkyboxRenderingPass(skyboxTexture, camera, skyboxTransform);
 			this->renderPass(pass);
 		}
 

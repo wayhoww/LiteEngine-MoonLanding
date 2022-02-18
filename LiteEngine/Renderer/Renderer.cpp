@@ -95,13 +95,17 @@ namespace LiteEngine::Rendering {
 		return pass;
 	}
 
-	std::shared_ptr<RenderingPass> Renderer::createSkyboxRenderingPass(
+	std::shared_ptr<RenderingPass> Renderer::getSkyboxRenderingPass(
 		PtrShaderResourceView skyboxTexture,
 		const RenderingScene::CameraInfo& camera,
 		DirectX::XMMATRIX skyboxTransform
 	) {
 		static auto pass = this->createRenderingPassWithoutSceneAndTarget(
-			CD3D11_RASTERIZER_DESC(CD3D11_DEFAULT()),
+			[]() {
+				auto desc = CD3D11_RASTERIZER_DESC(CD3D11_DEFAULT());
+				desc.CullMode = D3D11_CULL_NONE;
+				return desc;
+			}(),
 			[]() {
 				auto desc = CD3D11_DEPTH_STENCIL_DESC(CD3D11_DEFAULT()); 
 				desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
@@ -144,11 +148,8 @@ namespace LiteEngine::Rendering {
 		DirectX::ScratchImage image;		// out
 		DirectX::LoadFromDDSFile(file.c_str(), flags, &meta, image);
 		auto count = image.GetImageCount();
-		if (count != 6) {
-			throw std::exception("shader map dds should contains exact 6 images.");
-		}
 		PtrShaderResourceView view = nullptr;
-		DirectX::CreateShaderResourceView(device.Get(), image.GetImages(), 6, meta, &view);
+		DirectX::CreateShaderResourceView(device.Get(), image.GetImages(), count, meta, &view);
 		return view;
 	}
 
