@@ -29,6 +29,9 @@ namespace LiteEngine::IO {
         // 上一次记录的时间
         int64_t lastTime = 0;
 
+        // 用于返回累计时间
+        int64_t elapsedTime = 0;
+
 
         int64_t getPositiveTime(int64_t time) {
             if (time < 0) {
@@ -75,6 +78,11 @@ namespace LiteEngine::IO {
                 throw std::exception("cannot create timer");
         }
 
+        // 创建以来，到上一帧结束，用的时间总和
+        double getLastFrameEndTime() {
+            return 1.0 * this->elapsedTime / this->frequencyCount;
+        }
+
         double getLastFrameDuration() {
             return this->lastFrameDuration;
         }
@@ -105,7 +113,9 @@ namespace LiteEngine::IO {
             // 暂停的时候只要存储好 accTime 就好了，不需要更新 lastTime
             LARGE_INTEGER currentTime;
             QueryPerformanceCounter(&currentTime);
-            this->accTime += getPositiveTime(currentTime.QuadPart - this->lastTime);
+            auto delta = getPositiveTime(currentTime.QuadPart - this->lastTime);
+            this->accTime += delta;
+            this->elapsedTime += delta;
         }
 
 
@@ -114,12 +124,12 @@ namespace LiteEngine::IO {
 
             LARGE_INTEGER currentTime;
             QueryPerformanceCounter(&currentTime);
-            int64_t elapsedTime = this->accTime + getPositiveTime(currentTime.QuadPart - this->lastTime);
+            int64_t frameTime = this->accTime + getPositiveTime(currentTime.QuadPart - this->lastTime);
 
             if (method == FramerateControlling::WaitableObject) {
-                if (elapsedTime < this->desiredDuration) {
+                if (frameTime < this->desiredDuration) {
                     LARGE_INTEGER waitTime;
-                    waitTime.QuadPart = elapsedTime - this->desiredDuration;
+                    waitTime.QuadPart = frameTime - this->desiredDuration;
                     if (!SetWaitableTimer(timer, &waitTime, 0, NULL, NULL, FALSE)) {
                         // CloseHandle(timer);
                         throw std::exception("cannot set timer");
@@ -127,9 +137,9 @@ namespace LiteEngine::IO {
                     WaitForSingleObject(timer, INFINITE);
                 }
             } else if(method == FramerateControlling::Spin) {
-                while (elapsedTime < this->desiredDuration) {
+                while (frameTime < this->desiredDuration) {
                     QueryPerformanceCounter(&currentTime);
-                    elapsedTime = this->accTime + getPositiveTime(currentTime.QuadPart - this->lastTime);
+                    frameTime = this->accTime + getPositiveTime(currentTime.QuadPart - this->lastTime);
                 }
             } else {
                 // == FramerateControlling::GiveUp
@@ -137,11 +147,12 @@ namespace LiteEngine::IO {
             }
 
             QueryPerformanceCounter(&currentTime);
-            int64_t newElapsedTime = this->accTime + getPositiveTime(currentTime.QuadPart - this->lastTime);
+            int64_t deltaTime = this->accTime + getPositiveTime(currentTime.QuadPart - this->lastTime);
             this->accTime = 0;
+            this->elapsedTime += deltaTime;
             this->lastTime = currentTime.QuadPart;
 
-            this->lastFrameDuration = 1.0 * newElapsedTime / this->frequencyCount;
+            this->lastFrameDuration = 1.0 * deltaTime / this->frequencyCount;
             this->averageFPS = AverageWeight * (1 / this->lastFrameDuration) + (1 - AverageWeight) * this->averageFPS;
         
         }

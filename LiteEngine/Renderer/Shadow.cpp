@@ -113,7 +113,7 @@ namespace LiteEngine::Rendering {
 			std::max(abs(maximums.y), abs(minimums.y));
 		info.fieldOfViewYRadian = 2 * atanf(std::max(abs(maximums.y), abs(minimums.y)) / minimums.z);
 		// ²»ºÏÊÊ
-		constexpr float FOV_THRESHOLD = 170.f / 180.f * PI;
+		constexpr float FOV_THRESHOLD = (float)(170.f / 180.f * PI);
 		if (!std::isfinite(info.fieldOfViewYRadian) ||
 			info.fieldOfViewYRadian > FOV_THRESHOLD ||
 			info.fieldOfViewYRadian <= 0

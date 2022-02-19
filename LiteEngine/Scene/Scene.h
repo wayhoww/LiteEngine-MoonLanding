@@ -169,7 +169,6 @@ namespace LiteEngine::SceneManagement {
 
 		DirectX::XMMATRIX getLocalToWorldMatrix() const {
 			auto out = this->getTransformMatrix();
-		
 			if (auto ptr = this->parent.lock(); ptr) {
 				auto prev = ptr->getLocalToWorldMatrix();
 				auto rst = DirectX::XMMatrixMultiply(out, prev);
@@ -177,11 +176,31 @@ namespace LiteEngine::SceneManagement {
 			} else {
 				return out;
 			}
-			
+		}		
+		
+		DirectX::XMMATRIX getLocalToAncestorMatrix(std::shared_ptr<Object> ancestor) const {
+			if (this == &*ancestor) {
+				return DirectX::XMMatrixIdentity();
+			}
+			auto out = this->getTransformMatrix();
+			if (auto ptr = this->parent.lock(); ptr) {
+				auto prev = ptr->getLocalToWorldMatrix();
+				auto rst = DirectX::XMMatrixMultiply(out, prev);
+				return rst;
+			} else {
+				return out;
+			}
 		}
 
 		DirectX::XMFLOAT3 getWorldPosition() const {
 			auto mat = this->getLocalToWorldMatrix();
+			DirectX::XMFLOAT3 pos;
+			DirectX::XMStoreFloat3(&pos, mat.r[3]); // TRS æÿ’Û M33 == 1
+			return pos;
+		}		
+		
+		DirectX::XMFLOAT3 getPositionInAncestor(std::shared_ptr<Object> ancestor) const {
+			auto mat = this->getLocalToAncestorMatrix(ancestor);
 			DirectX::XMFLOAT3 pos;
 			DirectX::XMStoreFloat3(&pos, mat.r[3]); // TRS æÿ’Û M33 == 1
 			return pos;

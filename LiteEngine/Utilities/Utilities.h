@@ -30,16 +30,19 @@ static inline void log(LogLevel level, const std::wstring& s) {
 template <char c>
 constexpr uint32_t getKeyCode() {
 	constexpr UINT KEYCODE_A = 0x41;
+	constexpr UINT KEYCODE_0 = 0x30;
 	if constexpr (c >= 'a' && c <= 'z') {
 		return KEYCODE_A + (c - 'a');
 	} else if constexpr (c >= 'A' && c <= 'Z') {
 		return KEYCODE_A + (c - 'A');
+	} else if constexpr (c >= '0' && c <= '9') {
+		return KEYCODE_0 + (c - '0');
 	} else {
 		static_assert(false);
 	}
 }
 
 uint32_t getKeyCode(char c);
-constexpr float PI = 3.141592653589793115997963468544f;
+constexpr double PI = 3.141592653589793115997963468544f;
 
 }
