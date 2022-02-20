@@ -30,10 +30,10 @@ class MoonLandingGame {
 	static constexpr float OrbitHeightMoon = 5;
 	static constexpr float EarthRevolutionPeriod = 240; // 地球公转周期
 	static constexpr float EarthRotationPeriod = 40; // 地球自转周期
-	static constexpr float MoonRevolutionPeriod = 60; // 月球公转周期
-	static constexpr float EarthMoonTransferTime = 10; // 地月转移周期（两倍时间）
-	static constexpr float ShipRevolutionPeriodAroundEarth = 10;	// 飞船绕地球公转周期
-	static constexpr float ShipRevolutionPeriodAroundMoon = 7;	// 飞船绕地球公转周期
+	static constexpr float MoonRevolutionPeriod = 100; // 月球公转周期
+	static constexpr float EarthMoonTransferTime = 50; // 地月转移周期（两倍时间）
+	static constexpr float ShipRevolutionPeriodAroundEarth = 30;	// 飞船绕地球公转周期
+	static constexpr float ShipRevolutionPeriodAroundMoon = 20;	// 飞船绕月球公转周期
 	static constexpr float EarthAxialTilt = (float) ((23 + 26 / 60.0) / 180 * le::PI); // 黄赤交角
 	static constexpr float MoonRevolutionAngle = (float)(5.0 / 180 * le::PI); // 月亮公转轨道和地球的夹角
 
@@ -58,8 +58,8 @@ class MoonLandingGame {
 	std::shared_ptr<sm::Object> objShipCameraSys;
 	std::shared_ptr<sm::Object> objShipCameraSysCoordLayer;			// Earth -> Moon 转移轨道，处理具体位置
 	std::shared_ptr<sm::Object> objShipCameraSysOrientationLayer;	
-	std::shared_ptr<sm::Object> objShipCameraSysEarthOrbitLayer;	// 环绕地球轨道，本身会转动，所以地球在这个轨道里不需要动
-	std::shared_ptr<sm::Object> objShipCameraSysMoonOrbitLayer;		// 环绕月球轨道，本身会转动，所以地球在这个轨道里不需要动
+	std::shared_ptr<sm::Object> objShipCameraSysEarthOrbitLayer;	// 环绕地球轨道，本身会转动，所以在这个轨道里不需要动
+	std::shared_ptr<sm::Object> objShipCameraSysMoonOrbitLayer;		// 环绕月球轨道，本身会转动，所以在这个轨道里不需要动
 	std::shared_ptr<sm::Object> objShipCameraSysEMTransferLayer;	// Earth -> Moon 转移轨道，处理椭圆轨道的朝向和位置
 	std::shared_ptr<sm::Object> objEarthMoonSys;
 	std::shared_ptr<sm::Object> objEarthMoonSysOrbitLayer;
@@ -101,8 +101,12 @@ class MoonLandingGame {
 	double moonRevolutionOrbitRotationAngle = 0;	// 月球绕地球公转的角度
 	double earthToMoonTransferStartTime = 0;		// 地球向月球转移的开始时间
 	double earthToMoonRotationAngle = 0;			// 地球向月球转移的椭圆轨道角度（0-PI）
+	double moonToEarthTransferStartTime = 0;		// 月球向地球转移的开始时间
+	double moonToEarthRotationAngle = 0;			// 月球向地球转移的椭圆轨道角度（0-PI)
+	double aroundEarthStartTime = 0;				// 飞船环绕地球转动的开始时间
 	double aroundMoonStartTime = 0;					// 飞船环绕月球转动的开始时间
 	double shipOnMoonRotationAngle = 0;				// 飞船绕月球旋转的角度
+	double shipOnEarthRotationAngleOffset = 0;			// 地球开始转动时候的角度
 
 
 	MoonLandingGame(): window(
@@ -256,7 +260,6 @@ class MoonLandingGame {
 
 	void switchOrbitState(OrbitState to) {
 		if (orbitState == OrbitState::AroundEarth && to == OrbitState::EarthToMoon) {
-
 			objShipCameraSysEMTransferLayer->children = { objShipCameraSysCoordLayer };
 			objShipCameraSysCoordLayer->parent = objShipCameraSysEMTransferLayer;
 			objShipCameraSysEarthOrbitLayer->children.clear();
@@ -274,6 +277,25 @@ class MoonLandingGame {
 			objShipCameraSysEMTransferLayer->moveLocalCoord({ offset, 0, 0 });
 
 			earthToMoonTransferStartTime = framerateController.getLastFrameEndTime();
+		} else if (orbitState == OrbitState::AroundMoon && to == OrbitState::MoonToEarth) {
+			objShipCameraSysEMTransferLayer->children = { objShipCameraSysCoordLayer };
+			objShipCameraSysCoordLayer->parent = objShipCameraSysEMTransferLayer;
+			objShipCameraSysMoonOrbitLayer->children.clear();
+
+			objShipCameraSysEMTransferLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, 1, 0 }, moonRevolutionOrbitRotationAngle);
+
+			constexpr double R1 = EarthRadius + OrbitHeightEarth;
+			constexpr double R2 = EarthMoonDistance - MoonRadius - OrbitHeightMoon;
+			constexpr float offset = (float)((R1 + R2) / 2 - R1);
+
+			objShipCameraSysEMTransferLayer->transT = { 0, 0, 0 };
+			objShipCameraSysEMTransferLayer->moveLocalCoord({ offset, 0, 0 });
+
+			moonToEarthTransferStartTime = framerateController.getLastFrameEndTime();
+
+			// 顺便把返回地球后的参数也设置好
+			shipOnEarthRotationAngleOffset = fmod(moonRevolutionOrbitRotationAngle + le::PI, 2 * le::PI);
+
 		} else if (orbitState == OrbitState::EarthToMoon && to == OrbitState::AroundMoon) {
 			objShipCameraSysMoonOrbitLayer->children = { objShipCameraSysCoordLayer };
 			objShipCameraSysCoordLayer->parent = objShipCameraSysMoonOrbitLayer;
@@ -287,6 +309,20 @@ class MoonLandingGame {
 			);
 
 			aroundMoonStartTime = framerateController.getLastFrameEndTime();
+		} else if (orbitState == OrbitState::MoonToEarth && to == OrbitState::AroundEarth) {
+			objShipCameraSysEarthOrbitLayer->children = { objShipCameraSysCoordLayer };
+			objShipCameraSysCoordLayer->parent = objShipCameraSysEarthOrbitLayer;
+			objShipCameraSysEMTransferLayer->children.clear();
+
+			objShipCameraSysCoordLayer->transT = { EarthRadius + OrbitHeightMoon, 0, 0 };
+			objShipCameraSysOrientationLayer->transR = DirectX::XMQuaternionIdentity();
+			//objShipCameraSysOrientationLayer->transR = DirectX::XMQuaternionMultiply(
+			//	DirectX::XMQuaternionRotationAxis({ 0, 1, 0 }, le::PI),
+			//	DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, le::PI)
+			//);
+
+			aroundEarthStartTime = framerateController.getLastFrameEndTime();
+			
 		} else {
 			assert(false);
 		}
@@ -299,7 +335,7 @@ class MoonLandingGame {
 	static double modulePassThrough(double val, double start, double end, double mod) {
 		assert(end < mod && end >= 0 && start < mod && start >= 0 && val < mod && val >= 0);
 		if (end < start) {
-			start += mod;
+			end += mod;
 		}
 		if (val < start) {
 			val += mod;
@@ -309,6 +345,7 @@ class MoonLandingGame {
 
 	// changeState 用的变量
 	double lastShipOnEarthRotationAngle = -1;
+	double lastShipOnMoonRotationAngle = -1;
 	void changeState() {
 		char buffer[100];
 		if (commandInQueue) {
@@ -332,12 +369,34 @@ class MoonLandingGame {
 						lastShipOnEarthRotationAngle = shipOnEarthRotationAngle;
 					}
 				}
+			} else if (nextState == OrbitState::MoonToEarth) {
+				if (lastShipOnMoonRotationAngle < 0) {
+					lastShipOnMoonRotationAngle = shipOnMoonRotationAngle;
+					// then do nothing else
+				} else {
+					double threshold = le::PI;
+
+					if (modulePassThrough(threshold, lastShipOnMoonRotationAngle, shipOnMoonRotationAngle, le::PI * 2)) {
+						lastShipOnMoonRotationAngle = -1;
+						forbitCommand = true;
+						commandInQueue = false;
+						this->switchOrbitState(OrbitState::MoonToEarth);
+					} else {
+						lastShipOnMoonRotationAngle = shipOnMoonRotationAngle;
+					}
+
+				}
 			}
 		} else {
 			if (orbitState == OrbitState::EarthToMoon) {
 				// 处理转移结束
 				if (earthToMoonRotationAngle > le::PI) {
 					this->switchOrbitState(OrbitState::AroundMoon);
+					forbitCommand = false;
+				}
+			} else if (orbitState == OrbitState::MoonToEarth) {
+				if (moonToEarthRotationAngle > le::PI) {
+					this->switchOrbitState(OrbitState::AroundEarth);
 					forbitCommand = false;
 				}
 			}
@@ -392,8 +451,17 @@ class MoonLandingGame {
 		switch (orbitState) {
 		case OrbitState::AroundEarth:
 		{
-			double time = framerateController.getLastFrameEndTime();
+
+
+			double time = framerateController.getLastFrameEndTime() - aroundEarthStartTime;
 			shipOnEarthRotationAngle = le::PI * 2 * (fmod(time, ShipRevolutionPeriodAroundEarth) / ShipRevolutionPeriodAroundEarth);
+			shipOnEarthRotationAngle += shipOnEarthRotationAngleOffset;
+			shipOnEarthRotationAngle = fmod(shipOnEarthRotationAngle, le::PI * 2);
+
+		/*	char buffer[100];
+			sprintf_s(buffer, "ship = %.2lf  moon = %.2lf\n", shipOnEarthRotationAngle * 180 / le::PI, moonRevolutionOrbitRotationAngle * 180 / le::PI);
+			OutputDebugStringA(buffer);
+		*/
 			objShipCameraSysEarthOrbitLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, 1, 0 }, (float)shipOnEarthRotationAngle);
 		}
 		break;
@@ -422,8 +490,32 @@ class MoonLandingGame {
 		{
 			double time = framerateController.getLastFrameEndTime() - aroundMoonStartTime;
 			shipOnMoonRotationAngle = le::PI + le::PI * 2 * (fmod(time, ShipRevolutionPeriodAroundMoon) / ShipRevolutionPeriodAroundMoon);
+			shipOnMoonRotationAngle = fmod(shipOnMoonRotationAngle, 2 * le::PI);
 
 			objShipCameraSysMoonOrbitLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, shipOnMoonRotationAngle);
+		}
+		break;
+		case OrbitState::MoonToEarth:
+		{
+			// 走地月转移轨道的 [PI, 2PI]
+
+			double time = framerateController.getLastFrameEndTime() - moonToEarthTransferStartTime;
+			moonToEarthRotationAngle = le::PI * 2 * (fmod(time, EarthMoonTransferTime) / EarthMoonTransferTime);
+
+			constexpr double R1 = EarthRadius + OrbitHeightEarth;
+			constexpr double R2 = EarthMoonDistance - MoonRadius - OrbitHeightMoon;
+			constexpr double c = (R2 - R1) / 2;
+			constexpr double a = (R2 + R1) / 2;
+			const double b = sqrt(a * a - c * c);
+
+			float x = float(a * cos(moonToEarthRotationAngle + le::PI));
+			float z = float(b * sin(moonToEarthRotationAngle + le::PI));
+
+			objShipCameraSysCoordLayer->transT = { -x, 0, z };
+			objShipCameraSysOrientationLayer->transR = DirectX::XMQuaternionMultiply(
+				DirectX::XMQuaternionRotationAxis({ 0, 1, 0 }, moonToEarthRotationAngle + le::PI),
+				DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, circleToAngle(-x, z))
+			);
 		}
 		break;
 		default:
@@ -478,7 +570,7 @@ class MoonLandingGame {
 
 
 			// left -> Earth; right -> Moon
-			if (msg == WM_KEYDOWN && (wparam == VK_LEFT || wparam == VK_RIGHT)) {
+			if (msg == WM_KEYDOWN && (wparam == VK_LEFT || wparam == VK_RIGHT) && !forbitCommand) {
 				switch (orbitState) {
 				case OrbitState::AroundEarth:
 					if (wparam == VK_LEFT) {
@@ -487,6 +579,15 @@ class MoonLandingGame {
 						// earth -> moon
 						commandInQueue = true;
 						nextState = OrbitState::EarthToMoon;
+					}
+					break;
+				case OrbitState::AroundMoon:
+					if (wparam == VK_LEFT) {
+						// moon -> earth
+						commandInQueue = true;
+						nextState = OrbitState::MoonToEarth;
+					} else {
+						// land on the moon
 					}
 				}
 			}
