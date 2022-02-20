@@ -179,12 +179,13 @@ namespace LiteEngine::SceneManagement {
 		}		
 		
 		DirectX::XMMATRIX getLocalToAncestorMatrix(std::shared_ptr<Object> ancestor) const {
+			if (ancestor == nullptr) return getLocalToWorldMatrix();
 			if (this == &*ancestor) {
 				return DirectX::XMMatrixIdentity();
 			}
 			auto out = this->getTransformMatrix();
 			if (auto ptr = this->parent.lock(); ptr) {
-				auto prev = ptr->getLocalToWorldMatrix();
+				auto prev = ptr->getLocalToAncestorMatrix(ancestor);
 				auto rst = DirectX::XMMatrixMultiply(out, prev);
 				return rst;
 			} else {
