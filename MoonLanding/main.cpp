@@ -31,7 +31,7 @@ class MoonLandingGame {
 	static constexpr float EarthRevolutionPeriod = 240; // 地球公转周期
 	static constexpr float EarthRotationPeriod = 40; // 地球自转周期
 	static constexpr float MoonRevolutionPeriod = 100; // 月球公转周期
-	static constexpr float EarthMoonTransferTime = 50; // 地月转移周期（两倍时间）
+	static constexpr float EarthMoonTransferTime = 20; // 地月转移周期（两倍时间）
 	static constexpr float ShipRevolutionPeriodAroundEarth = 30;	// 飞船绕地球公转周期
 	static constexpr float ShipRevolutionPeriodAroundMoon = 20;	// 飞船绕月球公转周期
 	static constexpr float EarthAxialTilt = (float) ((23 + 26 / 60.0) / 180 * le::PI); // 黄赤交角
