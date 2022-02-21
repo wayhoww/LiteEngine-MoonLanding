@@ -138,6 +138,13 @@ class MoonLandingGame {
 	// 角度不同
 	double cameraFlyingMode = 0;
 
+
+	// 操作指南：
+	bool leftKeyValid = false;
+	bool rightKeyValid = false;
+	OrbitState leftKeyOp;
+	OrbitState rightKeyOp;
+
 	MoonLandingGame(): window(
 		L"Rendering Window", 
 		WS_OVERLAPPEDWINDOW ^ WS_SIZEBOX ^ WS_MAXIMIZEBOX,
@@ -526,11 +533,6 @@ class MoonLandingGame {
 				auto ry = circleToAngle(localPos3.x, localPos3.z);	// dest ry
 				auto rz = asin(localPos3.y);
 
-
-				char buffer[100];
-				sprintf_s(buffer, "ry=%.2lf\n", ry);
-				OutputDebugStringA(buffer);
-
 				if (lastShipOnEarthRy >= 0 && modulePassThrough(LandEarthStartRy, ry, lastShipOnEarthRy, 2 * le::PI)) {
 					lastShipOnEarthRy = -1;
 					forbitCommand = true;
@@ -594,10 +596,46 @@ class MoonLandingGame {
 		cmShipFree->data.fieldOfViewYRadian = (float) std::min<double>(le::PI * 0.8, CMShipFreeFOV * (0.5 + (rz + 1) / 2));
 	}
 
+	static const wchar_t* getStateName(OrbitState state) {
+		/*
+			enum class OrbitState { 
+				OnTheEarth, LaunchEarth, AroundEarth, EarthToMoon, LandEarth,
+				OnTheMoon,  LaunchMoon,  AroundMoon,  MoonToEarth, LandMoon
+			};
+		*/
+		static const wchar_t* names[] = {
+			L"停靠地球",
+			L"从地球发射",
+			L"环绕地球",
+			L"地月转移",
+			L"着陆地球",
+			L"停靠月球",
+			L"从月球发射",
+			L"环绕月球",
+			L"月地转移",
+			L"着陆月球"
+		};
+
+		return names[static_cast<int>(state)];
+	}
+
 	void updateWindowTitle() {
-		wchar_t titleBuffer[50];
-		swprintf_s(titleBuffer, L"%5.0lf", framerateController.getAverageFPS());
-		SetWindowText(window.getHwnd(), titleBuffer);
+		wchar_t operationHint[100];
+
+		swprintf_s(operationHint, L"正在: %s；%s%s%s%s%s%s%s%s%s", 
+			getStateName(orbitState),
+			commandInQueue ? L"将择机 " : L"",
+			commandInQueue ? getStateName(nextState) : L"",
+			commandInQueue ? L"；" : L"",
+			leftKeyValid ? L"左方向键：" : L"",
+			leftKeyValid ? getStateName(leftKeyOp) : L"",
+			leftKeyValid ? L"；" : L"",
+			rightKeyValid ? L"右方向键：" : L"",
+			rightKeyValid ? getStateName(rightKeyOp) : L"",
+			rightKeyValid ? L"；" : L""
+		);
+
+		SetWindowText(window.getHwnd(), operationHint);
 	}
 
 	static double circleToAngle(double x, double y) {
@@ -933,6 +971,50 @@ class MoonLandingGame {
 		}
 	}
 
+	void updatetValidOperationInfo() {
+
+		switch (orbitState) {
+		case OrbitState::AroundEarth:
+
+			leftKeyValid = true;
+			leftKeyOp = OrbitState::LandEarth;
+			
+			rightKeyValid = true;
+			rightKeyOp = OrbitState::EarthToMoon;
+			
+			break;
+		case OrbitState::AroundMoon:
+
+			leftKeyValid = true;
+			leftKeyOp = OrbitState::MoonToEarth;
+
+			rightKeyValid = true;
+			rightKeyOp = OrbitState::LandMoon;
+
+			break;
+		case OrbitState::OnTheEarth:
+			leftKeyValid = false;
+
+			rightKeyValid = true;
+			rightKeyOp = OrbitState::LaunchEarth;
+
+			break;
+		case OrbitState::OnTheMoon:
+
+			leftKeyValid = true;
+			leftKeyOp = OrbitState::LaunchMoon;
+
+			rightKeyValid = false;
+			break;
+		default:
+			leftKeyValid = false;
+			rightKeyValid = false;
+			break;
+		}
+
+	}
+
+
 	void moveCameraNorthFixed() {
 		auto pos = this->objEarthMoonSys->getPositionInAncestor(this->objRoot);
 		cmNorthFixed->transT.x = pos.x / 2;
@@ -955,7 +1037,7 @@ class MoonLandingGame {
 		framerateController.begin();
 
 		processEvents(events);
-
+		updatetValidOperationInfo();
 		updateWindowTitle();
 
 		changeState();
