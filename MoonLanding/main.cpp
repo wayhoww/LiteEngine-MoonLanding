@@ -42,6 +42,7 @@ class MoonLandingGame {
 	io::FramerateController framerateController;
 
 	std::shared_ptr<sm::Scene> scene;
+	float aspectRatio = 1;
 
 	// textures
 	rd::PtrShaderResourceView texSkymap;
@@ -86,7 +87,7 @@ class MoonLandingGame {
 	std::shared_ptr<sm::Light> ltSum; // 位于 Root，直接控制方向
 
 	// states
-	enum class CameraSetting { FirstPerson, ThirdPerson };
+	enum class CameraSetting { FirstPerson, ThirdPerson, North };
 	CameraSetting activeCamera = CameraSetting::FirstPerson;
 
 	enum class OrbitState { 
@@ -148,7 +149,7 @@ class MoonLandingGame {
 	MoonLandingGame(): window(
 		L"Rendering Window", 
 		WS_OVERLAPPEDWINDOW ^ WS_SIZEBOX ^ WS_MAXIMIZEBOX,
-		0, 0, 1000, 1000), 
+		0, 0, 1800, 1000), 
 		framerateController(60, io::FramerateControlling::WaitableObject)
 	{
 		rd::Renderer::setHandle(window.getHwnd());
@@ -159,6 +160,9 @@ class MoonLandingGame {
 		cmShipThirdPersonRotate.accZ = -1.5;
 		cmShipThirdPersonRotate.zMin = -15;
 		cmShipThirdPersonRotate.zMax = -1.5;
+
+		auto [w, h] = window.getSize();
+		this->aspectRatio = 1.f * w / h;
 
 
 		window.renderCallback = [this](auto& x, auto& y) { renderCallback(x, y); };
@@ -201,7 +205,7 @@ class MoonLandingGame {
 		cmShipFree->data.projectionType = rd::RenderingScene::CameraInfo::ProjectionType::PERSPECTIVE;
 		cmShipFree->data.nearZ = 0.1f;
 		cmShipFree->data.farZ = 1000;
-		cmShipFree->data.aspectRatio = 1; // TODO
+		cmShipFree->data.aspectRatio = aspectRatio; 
 		cmShipFree->data.fieldOfViewYRadian = CMShipFreeFOV;
 
 		cmShipThirdPerson = std::make_shared<sm::Camera>();
@@ -214,7 +218,7 @@ class MoonLandingGame {
 		cmNorthFixed->data.projectionType = rd::RenderingScene::CameraInfo::ProjectionType::PERSPECTIVE;
 		cmNorthFixed->data.nearZ = SumRadius;
 		cmNorthFixed->data.farZ = SumRadius * 6;
-		cmNorthFixed->data.aspectRatio = 1; // TODO
+		cmNorthFixed->data.aspectRatio = aspectRatio; 
 		cmNorthFixed->data.fieldOfViewYRadian = CMShipFreeFOV;
 		//cmNorthFixed->data.viewHeight = SumEarthDistance + SumRadius * 2 + EarthMoonDistance + MoonRadius * 3;
 		//cmNorthFixed->data.viewWidth = SumEarthDistance + SumRadius * 2 + EarthMoonDistance + MoonRadius * 3;
@@ -598,10 +602,10 @@ class MoonLandingGame {
 
 	static const wchar_t* getStateName(OrbitState state) {
 		/*
-			enum class OrbitState { 
-				OnTheEarth, LaunchEarth, AroundEarth, EarthToMoon, LandEarth,
-				OnTheMoon,  LaunchMoon,  AroundMoon,  MoonToEarth, LandMoon
-			};
+		enum class OrbitState { 
+		OnTheEarth, LaunchEarth, AroundEarth, EarthToMoon, LandEarth,
+		OnTheMoon,  LaunchMoon,  AroundMoon,  MoonToEarth, LandMoon
+		};
 		*/
 		static const wchar_t* names[] = {
 			L"停靠地球",
@@ -619,10 +623,26 @@ class MoonLandingGame {
 		return names[static_cast<int>(state)];
 	}
 
+	static const wchar_t* getCameraName(CameraSetting camera) {
+		/*
+		enum class OrbitState { 
+		OnTheEarth, LaunchEarth, AroundEarth, EarthToMoon, LandEarth,
+		OnTheMoon,  LaunchMoon,  AroundMoon,  MoonToEarth, LandMoon
+		};
+		*/
+		static const wchar_t* names[] = {
+			L"第一人称",
+			L"第三人称",
+			L"北极俯视"
+		};
+
+		return names[static_cast<int>(camera)];
+	}
+
 	void updateWindowTitle() {
 		wchar_t operationHint[100];
 
-		swprintf_s(operationHint, L"正在: %s；%s%s%s%s%s%s%s%s%s", 
+		swprintf_s(operationHint, L"正在: %s；%s%s%s%s%s%s%s%s%s空格：相机；鼠标：方向；当前相机：%s",
 			getStateName(orbitState),
 			commandInQueue ? L"将择机 " : L"",
 			commandInQueue ? getStateName(nextState) : L"",
@@ -632,7 +652,8 @@ class MoonLandingGame {
 			leftKeyValid ? L"；" : L"",
 			rightKeyValid ? L"右方向键：" : L"",
 			rightKeyValid ? getStateName(rightKeyOp) : L"",
-			rightKeyValid ? L"；" : L""
+			rightKeyValid ? L"；" : L"",
+			getCameraName(this->activeCamera)
 		);
 
 		SetWindowText(window.getHwnd(), operationHint);
@@ -895,30 +916,24 @@ class MoonLandingGame {
 	}
 
 	void processEvents(const std::vector<std::tuple<UINT, WPARAM, LPARAM>>& events) {
-		constexpr float NORTH_FIX_SHIP_SCALE = 20;
+		constexpr float NORTH_FIX_SHIP_SCALE = 10;
 		for (auto [msg, wparam, lparam]: events) {
 			if (msg == WM_KEYDOWN && wparam == VK_SPACE) {
-				objRoot->dump();
-			//	this->switchOrbitState(OrbitState::EarthToMoon);
-			} else if (msg == WM_KEYDOWN && (wparam == le::getKeyCode<'3'>() || wparam == VK_NUMPAD3)) {
-				if (activeCamera == CameraSetting::ThirdPerson) continue;
-				scene->activeCamera = this->cmNorthFixed;
-				activeCamera = CameraSetting::ThirdPerson;
 				objShip->multiplyScale({ NORTH_FIX_SHIP_SCALE, NORTH_FIX_SHIP_SCALE, NORTH_FIX_SHIP_SCALE });
-			} else if (msg == WM_KEYDOWN && (wparam == le::getKeyCode<'4'>() || wparam == VK_NUMPAD4)) {
-				if (activeCamera == CameraSetting::FirstPerson) continue;
-				scene->activeCamera = this->cmShipFree;
-				activeCamera = CameraSetting::FirstPerson;
-				objShip->multiplyScale({ 1/NORTH_FIX_SHIP_SCALE, 1/NORTH_FIX_SHIP_SCALE, 1/NORTH_FIX_SHIP_SCALE });
-			} else if (msg == WM_KEYDOWN && wparam == le::getKeyCode<'Q'>()) {
 				if (activeCamera == CameraSetting::FirstPerson) {
 					// first person -> third person
 					scene->activeCamera = this->cmShipThirdPerson;
 					activeCamera = CameraSetting::ThirdPerson;
-				} else {
-					// third person -> first person
+					objShip->transS = { 1, 1, 1 };
+				} else if(activeCamera == CameraSetting::ThirdPerson){
+					// third person -> north fixed person
+					scene->activeCamera = this->cmNorthFixed;
+					activeCamera = CameraSetting::North;
+					objShip->transS = { NORTH_FIX_SHIP_SCALE, NORTH_FIX_SHIP_SCALE, NORTH_FIX_SHIP_SCALE };
+				} else {	
 					scene->activeCamera = this->cmShipFree;
 					activeCamera = CameraSetting::FirstPerson;
+					objShip->transS = { 1, 1, 1 };
 				}
 			}
 
