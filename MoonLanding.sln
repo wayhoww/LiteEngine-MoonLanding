@@ -5,8 +5,6 @@ VisualStudioVersion = 16.0.32106.194
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MoonLanding", "MoonLanding\MoonLanding.vcxproj", "{ADC18609-DEBF-4A8F-BDB7-29B9A27AE3AD}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LiteEngineTest", "LiteEngineTest\LiteEngineTest.vcxproj", "{75E8439E-AF08-426D-967E-C8BA63F3B4C1}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LiteEngine", "LiteEngine\LiteEngine.vcxproj", "{53C0EED6-8432-4226-AE0D-0270BA9473DC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{80834619-1E9E-4A32-9BF8-6239EEE51F12}"
@@ -29,10 +27,6 @@ Global
 		{ADC18609-DEBF-4A8F-BDB7-29B9A27AE3AD}.Debug|x64.Build.0 = Debug|x64
 		{ADC18609-DEBF-4A8F-BDB7-29B9A27AE3AD}.Release|x64.ActiveCfg = Release|x64
 		{ADC18609-DEBF-4A8F-BDB7-29B9A27AE3AD}.Release|x64.Build.0 = Release|x64
-		{75E8439E-AF08-426D-967E-C8BA63F3B4C1}.Debug|x64.ActiveCfg = Debug|x64
-		{75E8439E-AF08-426D-967E-C8BA63F3B4C1}.Debug|x64.Build.0 = Debug|x64
-		{75E8439E-AF08-426D-967E-C8BA63F3B4C1}.Release|x64.ActiveCfg = Release|x64
-		{75E8439E-AF08-426D-967E-C8BA63F3B4C1}.Release|x64.Build.0 = Release|x64
 		{53C0EED6-8432-4226-AE0D-0270BA9473DC}.Debug|x64.ActiveCfg = Debug|x64
 		{53C0EED6-8432-4226-AE0D-0270BA9473DC}.Debug|x64.Build.0 = Debug|x64
 		{53C0EED6-8432-4226-AE0D-0270BA9473DC}.Release|x64.ActiveCfg = Release|x64
