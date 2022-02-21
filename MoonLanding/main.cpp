@@ -11,15 +11,6 @@ namespace io = LiteEngine::IO;
 namespace sm = LiteEngine::SceneManagement;
 
 class MoonLandingGame {
-
-	//static constexpr float EarthRadius = 6371e3f;
-	//static constexpr float MoonRadius = 1737e3f;
-	//static constexpr float SumRadius = 696340e3f;
-	//static constexpr float SpaceshipHeight = 10;
-	//static constexpr float EarthMoonDistance = 384400e3f;
-	//static constexpr float SumEarthDistance = 149597871e3f;
-	//static constexpr float OrbitHeight = 1000e3f;
-
 	static constexpr float EarthRadius = 40;
 	static constexpr float MoonRadius = 17;
 	static constexpr float SumRadius = 100;
@@ -596,11 +587,7 @@ class MoonLandingGame {
 		cmShipFreeRotate.receiveEvent(events, lastDuration);
 
 		auto [rx, ry, rz] = cmShipFreeRotate.getXYZ();
-		//cmShipFreeYawLayer->moveLocalCoord({ 
-		//	(float)cmShipFreeMoveX.popValue(), 
-		//	(float)cmShipFreeMoveY.popValue(),
-		//	(float)cmShipFreeMoveZ.popValue(),
-		//});
+
 		cmShipFreeYawLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, (float)rx);
 		cmShipFreePitchLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (float)ry);
 		
@@ -639,10 +626,6 @@ class MoonLandingGame {
 			shipOnEarthRotationAngle += shipOnEarthRotationAngleOffset;
 			shipOnEarthRotationAngle = fmod(shipOnEarthRotationAngle, le::PI * 2);
 
-		/*	char buffer[100];
-			sprintf_s(buffer, "ship = %.2lf  moon = %.2lf\n", shipOnEarthRotationAngle * 180 / le::PI, moonRevolutionOrbitRotationAngle * 180 / le::PI);
-			OutputDebugStringA(buffer);
-		*/
 			objShipCameraSysEarthOrbitLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, 1, 0 }, (float)shipOnEarthRotationAngle);
 
 			objShipCameraSysOrientationLayer->transR = DirectX::XMQuaternionMultiply(
@@ -847,9 +830,6 @@ class MoonLandingGame {
 	}
 
 	void updateCameraAnimation() {
-		/*		cmShipFreePresetLayer->moveParentCoord({0, -SpaceshipHeight, -SpaceshipHeight});
-		cmShipFreePresetLayer->rotateParentCoord(DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, le::PI / 2 * 0.8));
-*/
 		cmShipFreePresetLayer->transT = { 
 			0, 
 			float((1 - cameraFlyingMode) * SpaceshipHeight * 3 + cameraFlyingMode * (-SpaceshipHeight)), 
@@ -897,12 +877,10 @@ class MoonLandingGame {
 					// first person -> third person
 					scene->activeCamera = this->cmShipThirdPerson;
 					activeCamera = CameraSetting::ThirdPerson;
-					//objShip->multiplyScale({ 1 / NORTH_FIX_SHIP_SCALE, 1 / NORTH_FIX_SHIP_SCALE, 1 / NORTH_FIX_SHIP_SCALE });
 				} else {
 					// third person -> first person
 					scene->activeCamera = this->cmShipFree;
 					activeCamera = CameraSetting::FirstPerson;
-					//objShip->multiplyScale({ 1 / NORTH_FIX_SHIP_SCALE, 1 / NORTH_FIX_SHIP_SCALE, 1 / NORTH_FIX_SHIP_SCALE });
 				}
 			}
 
