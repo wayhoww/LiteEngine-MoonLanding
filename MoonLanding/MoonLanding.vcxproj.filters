@@ -32,7 +32,11 @@
     <CopyFileToFolders Include="Resources\skymap.dds">
       <Filter>Resource Files</Filter>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="Resources\Sun_10m.glb" />
-    <CopyFileToFolders Include="Resources\Spaceship_20m.glb" />
+    <CopyFileToFolders Include="Resources\Sun_10m.glb">
+      <Filter>Resource Files</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Resources\Spaceship_20m.glb">
+      <Filter>Resource Files</Filter>
+    </CopyFileToFolders>
   </ItemGroup>
 </Project>
