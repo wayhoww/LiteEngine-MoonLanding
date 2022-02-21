@@ -91,8 +91,8 @@ class MoonLandingGame {
 	std::shared_ptr<sm::Light> ltSum; // 位于 Root，直接控制方向
 
 	// states
-	enum class CameraSetting { ShipFree, FixedNorth };
-	CameraSetting activeCamera = CameraSetting::ShipFree;
+	enum class CameraSetting { FirstPerson, ThirdPerson };
+	CameraSetting activeCamera = CameraSetting::FirstPerson;
 
 	enum class OrbitState { 
 		OnTheEarth, LaunchEarth, AroundEarth, EarthToMoon, LandEarth,
@@ -135,9 +135,13 @@ class MoonLandingGame {
 	double onTheMoonRadian = 0;
 
 	double launchFromMoonStartTime = 0;
-	double launchFromhMoonProgress = 0;
+	double launchFromMoonProgress = 0;
 
 	double shipOnMoonRotationAngleOffset = 0;
+
+	// 1 表示飞行状态，0 表示在地面。
+	// 角度不同
+	double cameraFlyingMode = 0;
 
 	MoonLandingGame(): window(
 		L"Rendering Window", 
@@ -312,9 +316,8 @@ class MoonLandingGame {
 		cmShipFreePitchLayer = cmShipFree->insertParent();
 		cmShipFreeYawLayer = cmShipFreePitchLayer->insertParent();
 		cmShipFreePresetLayer = cmShipFreePitchLayer->insertParent();
-		cmShipFreePresetLayer->moveParentCoord({ 0, -SpaceshipHeight, -SpaceshipHeight });
-		cmShipFreePresetLayer->rotateParentCoord(DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, le::PI / 2 * 0.8));
 		
+	
 		/* cmShipFreePresetLayer->moveParentCoord({ 0, SpaceshipHeight, 0 });
 		 cmShipFreePresetLayer->rotateParentCoord(DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, le::PI / 2 * 0));*/
 
@@ -441,7 +444,7 @@ class MoonLandingGame {
 			onTheMoonRadian = shipOnMoonRotationAngle;
 		} else if (orbitState == OrbitState::OnTheMoon && to == OrbitState::LaunchMoon) {
 			launchFromMoonStartTime = framerateController.getLastFrameEndTime();
-			launchFromhMoonProgress = 0;
+			launchFromMoonProgress = 0;
 		} else if (orbitState == OrbitState::LaunchMoon && to == OrbitState::AroundMoon) {
 			aroundMoonStartTime = framerateController.getLastFrameEndTime();
 			shipOnMoonRotationAngleOffset = shipOnMoonRotationAngle + le::PI;
@@ -571,7 +574,7 @@ class MoonLandingGame {
 					forbitCommand = false;
 				}
 			} else if (orbitState == OrbitState::LaunchMoon) {
-				if (launchFromhMoonProgress > 1) {
+				if (launchFromMoonProgress > 1) {
 					this->switchOrbitState(OrbitState::AroundMoon);
 				}
 			}
@@ -581,23 +584,21 @@ class MoonLandingGame {
 	}
 
 	void moveCameraShipFree(const std::vector<std::tuple<UINT, WPARAM, LPARAM>>& events) {
-		if (this->activeCamera != CameraSetting::ShipFree) return;
+		if (this->activeCamera != CameraSetting::FirstPerson) return;
 
 		auto lastDuration = (float)framerateController.getLastFrameDuration();
 
 		cmShipFreeRotate.receiveEvent(events, lastDuration);
-		cmShipFreeMoveX.receiveEvent(events, lastDuration);
-		cmShipFreeMoveY.receiveEvent(events, lastDuration);
-		cmShipFreeMoveZ.receiveEvent(events, lastDuration);
-		
+
 		auto [rx, ry, rz] = cmShipFreeRotate.getXYZ();
-		cmShipFreeYawLayer->moveLocalCoord({ 
-			(float)cmShipFreeMoveX.popValue(), 
-			(float)cmShipFreeMoveY.popValue(),
-			(float)cmShipFreeMoveZ.popValue(),
-		});
+		//cmShipFreeYawLayer->moveLocalCoord({ 
+		//	(float)cmShipFreeMoveX.popValue(), 
+		//	(float)cmShipFreeMoveY.popValue(),
+		//	(float)cmShipFreeMoveZ.popValue(),
+		//});
 		cmShipFreeYawLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, (float)rx);
 		cmShipFreePitchLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (float)ry);
+		
 		cmShipFree->data.fieldOfViewYRadian = (float) std::min<double>(le::PI * 0.8, CMShipFreeFOV * (0.5 + (rz + 1) / 2));
 	}
 
@@ -626,8 +627,8 @@ class MoonLandingGame {
 		switch (orbitState) {
 		case OrbitState::AroundEarth:
 		{
-
-
+			cameraFlyingMode = 1;
+			
 			double time = framerateController.getLastFrameEndTime() - aroundEarthStartTime;
 			shipOnEarthRotationAngle = le::PI * 2 * (fmod(time, ShipRevolutionPeriodAroundEarth) / ShipRevolutionPeriodAroundEarth);
 			shipOnEarthRotationAngle += shipOnEarthRotationAngleOffset;
@@ -647,6 +648,7 @@ class MoonLandingGame {
 		break;
 		case OrbitState::EarthToMoon:
 		{
+			cameraFlyingMode = 1;
 			double time = framerateController.getLastFrameEndTime() - earthToMoonTransferStartTime;
 			earthToMoonRotationAngle = le::PI * 2 * (fmod(time, EarthMoonTransferTime) / EarthMoonTransferTime);
 
@@ -668,6 +670,7 @@ class MoonLandingGame {
 		break;
 		case OrbitState::AroundMoon:
 		{
+			cameraFlyingMode = 1;
 			double time = framerateController.getLastFrameEndTime() - aroundMoonStartTime;
 			shipOnMoonRotationAngle = le::PI + le::PI * 2 * (fmod(time, ShipRevolutionPeriodAroundMoon) / ShipRevolutionPeriodAroundMoon) + shipOnMoonRotationAngleOffset;
 			shipOnMoonRotationAngle = fmod(shipOnMoonRotationAngle, 2 * le::PI);
@@ -680,6 +683,7 @@ class MoonLandingGame {
 		break;
 		case OrbitState::MoonToEarth:
 		{
+			cameraFlyingMode = 1;
 			// 走地月转移轨道的 [0, PI]
 
 			double time = framerateController.getLastFrameEndTime() - moonToEarthTransferStartTime;
@@ -703,6 +707,7 @@ class MoonLandingGame {
 		break;
 		case OrbitState::OnTheEarth:
 		{
+			cameraFlyingMode = 0;
 			// do nothing
 			// todo 可以在这里设置一下朝向之类的
 		}
@@ -711,6 +716,9 @@ class MoonLandingGame {
 		{
 			double time = framerateController.getLastFrameEndTime() - launchFromEarthStartTime;
 			launchFromEarthProgress = time / LaunchFromEarthTime;
+
+
+			cameraFlyingMode = launchFromEarthProgress;
 
 
 			auto [rx1, ry1, rz1] = rCoordLaunchFromEarthFrom;
@@ -735,6 +743,8 @@ class MoonLandingGame {
 			double time = framerateController.getLastFrameEndTime() - landEarthStartTime;
 			landToEarthProgress = time / LandToEarthTime;
 
+			cameraFlyingMode = 1 - landToEarthProgress;
+
 			if (landToEarthProgress > 1) break;
 
 			auto quat1 = rotateAxisToQuat(LandEarthStartRy, landEarthStartRz);
@@ -758,9 +768,13 @@ class MoonLandingGame {
 		break;
 		case OrbitState::LandMoon:
 		{
+
+			
 			double time = framerateController.getLastFrameEndTime() - landOnTheMoonStartTime;
 			landOnTheMoonProgress = time / LandToMoonTime;
 			double transformedTime = pow(landOnTheMoonProgress, 3);
+			
+			cameraFlyingMode = 1 - landOnTheMoonProgress;
 
 			shipOnMoonRotationAngle = le::PI * 2 * (fmod(time, ShipRevolutionPeriodAroundMoon) / ShipRevolutionPeriodAroundMoon) + landOnTheMoonRadianOffset;
 			shipOnMoonRotationAngle = fmod(shipOnMoonRotationAngle, 2 * le::PI);
@@ -777,14 +791,17 @@ class MoonLandingGame {
 		break;
 		case OrbitState::OnTheMoon:
 		{
+			cameraFlyingMode = 0;
 			objShipCameraSysMoonOrbitLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, onTheMoonRadian);
 		}
 		break;
 		case OrbitState::LaunchMoon:
 		{
 			double time = framerateController.getLastFrameEndTime() - launchFromMoonStartTime;
-			launchFromhMoonProgress = time / LaunchFromMoonTime;
-			double transformedTime = pow(launchFromhMoonProgress, 3);
+			launchFromMoonProgress = time / LaunchFromMoonTime;
+			double transformedTime = pow(launchFromMoonProgress, 3);
+
+			cameraFlyingMode = launchFromMoonProgress;
 
 			shipOnMoonRotationAngle = le::PI + le::PI * 2 * (fmod(time, ShipRevolutionPeriodAroundMoon) / ShipRevolutionPeriodAroundMoon) + landOnTheMoonRadianOffset;
 			shipOnMoonRotationAngle = fmod(shipOnMoonRotationAngle, 2 * le::PI);
@@ -794,7 +811,7 @@ class MoonLandingGame {
 			objShipCameraSysOrientationLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (0) * (1 - transformedTime) + (-le::PI / 2) * transformedTime);
 
 			objShipCameraSysCoordLayer->transT = {
-				float(MoonRadius + (1 - launchFromhMoonProgress) * 0 + launchFromhMoonProgress * OrbitHeightMoon),
+				float(MoonRadius + (1 - launchFromMoonProgress) * 0 + launchFromMoonProgress * OrbitHeightMoon),
 				0, 0
 			};
 		}
@@ -824,8 +841,31 @@ class MoonLandingGame {
 		objMoonOrbit->transR = DirectX::XMQuaternionRotationAxis({0, 1, 0}, (float)rotationAngle);
 	}
 
+	void updateCameraAnimation() {
+		/*		cmShipFreePresetLayer->moveParentCoord({0, -SpaceshipHeight, -SpaceshipHeight});
+		cmShipFreePresetLayer->rotateParentCoord(DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, le::PI / 2 * 0.8));
+*/
+		cmShipFreePresetLayer->transT = { 
+			0, 
+			float((1 - cameraFlyingMode) * SpaceshipHeight * 6 + cameraFlyingMode * (-SpaceshipHeight)), 
+			float((1 - cameraFlyingMode) * SpaceshipHeight * 4 + cameraFlyingMode * (-SpaceshipHeight))
+		};
+
+		static auto cmShipFreeQuat1 = DirectX::XMQuaternionMultiply(
+			DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, -le::PI / 2 * 0.5),
+			DirectX::XMQuaternionRotationAxis({ 0, 1, 0 },le::PI)
+		);
+		static auto cmShipFreeQuat2 = DirectX::XMQuaternionMultiply(
+			DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (le::PI / 2 * 0.8)),
+			DirectX::XMQuaternionRotationAxis({ 0, 1, 0 }, 0)
+		);
+
+		cmShipFreePresetLayer->transR = DirectX::XMQuaternionSlerp(cmShipFreeQuat1, cmShipFreeQuat2, cameraFlyingMode);
+	}
+
 	void updateAnimation() {
 		updateSpaceshipAnimation();
+		updateCameraAnimation();
 		updateEarthRevolutionAnimation();
 		updateEarthRotationAnimation();
 		updateMoonRevolutionAnimation();
@@ -838,14 +878,14 @@ class MoonLandingGame {
 				objRoot->dump();
 			//	this->switchOrbitState(OrbitState::EarthToMoon);
 			} else if (msg == WM_KEYDOWN && (wparam == le::getKeyCode<'3'>() || wparam == VK_NUMPAD3)) {
-				if (activeCamera == CameraSetting::FixedNorth) continue;
+				if (activeCamera == CameraSetting::ThirdPerson) continue;
 				scene->activeCamera = this->cmNorthFixed;
-				activeCamera = CameraSetting::FixedNorth;
+				activeCamera = CameraSetting::ThirdPerson;
 				objShip->multiplyScale({ NORTH_FIX_SHIP_SCALE, NORTH_FIX_SHIP_SCALE, NORTH_FIX_SHIP_SCALE });
 			} else if (msg == WM_KEYDOWN && (wparam == le::getKeyCode<'4'>() || wparam == VK_NUMPAD4)) {
-				if (activeCamera == CameraSetting::ShipFree) continue;
+				if (activeCamera == CameraSetting::FirstPerson) continue;
 				scene->activeCamera = this->cmShipFree;
-				activeCamera = CameraSetting::ShipFree;
+				activeCamera = CameraSetting::FirstPerson;
 				objShip->multiplyScale({ 1/NORTH_FIX_SHIP_SCALE, 1/NORTH_FIX_SHIP_SCALE, 1/NORTH_FIX_SHIP_SCALE });
 			} 
 
@@ -899,7 +939,7 @@ class MoonLandingGame {
 	}
 
 	void moveCameraNorthFixed() {
-		if (this->activeCamera == CameraSetting::FixedNorth) {
+		if (this->activeCamera == CameraSetting::ThirdPerson) {
 			auto pos = this->objEarthMoonSys->getPositionInAncestor(this->objRoot);
 			cmNorthFixed->transT.x = pos.x / 2;
 			cmNorthFixed->transT.z = pos.z / 2;
