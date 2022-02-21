@@ -53,8 +53,10 @@ class MoonLandingGame {
 	std::shared_ptr<sm::Object> objMoonOrbit;
 	std::shared_ptr<sm::Object> objMoonOrbitAngleLayer; // 处理和黄道的夹角
 	std::shared_ptr<sm::Object> objEarth;
+	std::shared_ptr<sm::Object> objEarthShipPlacement;	// 在地球上的物体
 	std::shared_ptr<sm::Object> objEarthRotationAngleLayer;	// 处理黄赤交角
 	std::shared_ptr<sm::Object> objShip;
+	std::shared_ptr<sm::Object> objShip2;
 	std::shared_ptr<sm::Object> objShipCameraSys;
 	std::shared_ptr<sm::Object> objShipCameraSysCoordLayer;			// Earth -> Moon 转移轨道，处理具体位置
 	std::shared_ptr<sm::Object> objShipCameraSysOrientationLayer;	
@@ -89,7 +91,7 @@ class MoonLandingGame {
 		OnTheEarth, LaunchEarth, AroundEarth, EarthToMoon, LandEarth,
 		OnTheMoon,  LauhcnMoon,  AroundMoon,  MoonToEarth, LandMoon
 	};
-	OrbitState orbitState = OrbitState::AroundEarth;	// todo
+	OrbitState orbitState = OrbitState::OnTheEarth;	// todo
 
 	// commandInQueue 表示目前有待处理的命令在队列中等待执行（如开始转移）
 	bool commandInQueue = false;
@@ -107,6 +109,7 @@ class MoonLandingGame {
 	double aroundMoonStartTime = 0;					// 飞船环绕月球转动的开始时间
 	double shipOnMoonRotationAngle = 0;				// 飞船绕月球旋转的角度
 	double shipOnEarthRotationAngleOffset = 0;			// 地球开始转动时候的角度
+	double earthRotationAngle = 0;					// 地球自转角度
 
 
 	MoonLandingGame(): window(
@@ -135,12 +138,15 @@ class MoonLandingGame {
 		objEarth->children = { objEarthLD };
 
 		auto objMoonLD = io::loadDefaultResourceGLTF("Moon_10m.glb");
-		objMoonLD->multiplyScale({ -MoonRadius / 10, MoonRadius / 10, MoonRadius / 10 });
+		objMoonLD->multiplyScale({ MoonRadius / 10, MoonRadius / 10, MoonRadius / 10 });
+		objMoonLD->rotateParentCoord(DirectX::XMQuaternionRotationAxis({ 0, 1, 0 }, le::PI));
 		objMoon = std::make_shared<sm::Object>("Moon");
 		objMoon->children = { objMoonLD };
 
 		objShip = io::loadDefaultResourceGLTF("Spaceship_5cm.glb");
 		objShip->multiplyScale({ SpaceshipHeight / 0.05f, SpaceshipHeight / 0.05f, SpaceshipHeight / 0.05f });
+		objShip2 = io::loadDefaultResourceGLTF("Spaceship_5cm.glb");
+		objShip2->multiplyScale({ SpaceshipHeight / 0.5f, SpaceshipHeight / 0.5f, SpaceshipHeight / 0.5f });
 
 		texSkymap = renderer->createCubeMapFromDDS(L"skymap.dds");
 	}
@@ -197,6 +203,7 @@ class MoonLandingGame {
 		objMoonOrbit = std::make_shared<sm::Object>("Moon Orbit");
 		objMoonOrbitAngleLayer = std::make_shared<sm::Object>("Moon Re Angle Layer");
 		objShipCameraSysMoonOrbitLayer = std::make_shared<sm::Object>("ShipCameraSystem Moon Orbit");
+		objEarthShipPlacement = std::make_shared<sm::Object>("Earth Ship Placement");
 
 		scene->rootObject = objRoot;
 
@@ -209,11 +216,34 @@ class MoonLandingGame {
 			{
 				// 地球
 				objEarthRotationAngleLayer->children = { objEarth };
-				objEarthRotationAngleLayer->rotateParentCoord(DirectX::XMQuaternionRotationAxis({ 1, 0, 0 }, (float)EarthAxialTilt));
+				objEarthRotationAngleLayer->rotateParentCoord(DirectX::XMQuaternionRotationAxis({ 1, 0, 0 }, EarthAxialTilt));
+				
+				{
+					objEarth->children.push_back(objEarthShipPlacement);
+					objEarthShipPlacement->children = { objShipCameraSysCoordLayer };
+					objEarthShipPlacement->transR =  DirectX::XMQuaternionMultiply(
+						DirectX::XMQuaternionRotationAxis({0, 1, 0}, le::PI * 110 / 180 + le::PI), // 先经度类
+						DirectX::XMQuaternionRotationAxis({0, 0, -1}, le::PI * 20 / 180 ) // 再沿着旋转的轴旋转好纬度
+					);
+					
+					objShipCameraSysCoordLayer->children = { objShipCameraSysOrientationLayer }; 
+					objShipCameraSysOrientationLayer->children = { objShipCameraSys };
+					objShipCameraSys->children = { objShip, cmShipFree };
+
+					objShipCameraSysCoordLayer->moveParentCoord({ EarthRadius, 0, 0 });
+					objShipCameraSysCoordLayer->rotateParentCoord(
+						DirectX::XMQuaternionMultiply(
+							DirectX::XMQuaternionRotationAxis({ 0, 0, 1 }, -le::PI / 2),
+							DirectX::XMQuaternionRotationAxis({ 0, 0, 1 }, 0)
+						)
+					);
+
+
+				}
 			}
 			{
 				// 月球
-				objMoonOrbitAngleLayer->transR = DirectX::XMQuaternionRotationAxis({0, 0, 1}, MoonRevolutionAngle);
+				objMoonOrbitAngleLayer->transR = DirectX::XMQuaternionRotationAxis({1, 0, 0}, MoonRevolutionAngle);
 				objMoonOrbitAngleLayer->children = { 
 					objMoonOrbit, 
 					objShipCameraSysEarthOrbitLayer,
@@ -228,8 +258,11 @@ class MoonLandingGame {
 					}
 				}
 				{
-					objShipCameraSysCoordLayer->children = { objShipCameraSysOrientationLayer }; 
+					objShipCameraSysEarthOrbitLayer->children = { objShip2 };
+					objShip2->moveParentCoord({EarthRadius, 0, 0});
+				/*
 					objShipCameraSysEarthOrbitLayer->children = { objShipCameraSysCoordLayer };
+					objShipCameraSysCoordLayer->children = { objShipCameraSysOrientationLayer }; 
 					objShipCameraSysOrientationLayer->children = { objShipCameraSys };
 					objShipCameraSys->children = { objShip, cmShipFree };
 
@@ -239,7 +272,7 @@ class MoonLandingGame {
 							DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, le::PI / 2),
 							DirectX::XMQuaternionRotationAxis({ 0, 0, 1 }, le::PI / 2)
 						)
-					);
+					);*/
 				}
 			}
 		}
@@ -251,9 +284,12 @@ class MoonLandingGame {
 		cmShipFreePitchLayer = cmShipFree->insertParent();
 		cmShipFreeYawLayer = cmShipFreePitchLayer->insertParent();
 		cmShipFreePresetLayer = cmShipFreePitchLayer->insertParent();
-		cmShipFreePresetLayer->moveParentCoord({ 0, -SpaceshipHeight, -SpaceshipHeight });
-		cmShipFreePresetLayer->rotateParentCoord(DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, le::PI / 2 * 0.8));
+		//cmShipFreePresetLayer->moveParentCoord({ 0, -SpaceshipHeight, -SpaceshipHeight });
+		//cmShipFreePresetLayer->rotateParentCoord(DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, le::PI / 2 * 0.8));
 		
+		cmShipFreePresetLayer->moveParentCoord({ 0, SpaceshipHeight, 0 });
+		cmShipFreePresetLayer->rotateParentCoord(DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, le::PI / 2 * 0));
+
 
 		updateLights();
 	}
@@ -518,6 +554,54 @@ class MoonLandingGame {
 			);
 		}
 		break;
+		case OrbitState::OnTheEarth:
+		{
+			static float val = 0;
+			val += 0.005;
+			char buffer[100];
+			sprintf_s(buffer, "%.3f\n", val * 180 / le::PI);
+			//OutputDebugStringA(buffer);
+			objEarthShipPlacement->transR =  DirectX::XMQuaternionMultiply(
+				// positive: south
+				DirectX::XMQuaternionRotationAxis({0, 0, -1}, le::PI * 40 / 180 ), //纬度
+				DirectX::XMQuaternionRotationAxis({0, 1, 0},  le::PI * 85 / 180) // 经度
+			);
+
+			
+			auto worldPos = objShipCameraSys->getWorldPosition();
+			auto l2w = objMoonOrbitAngleLayer->getLocalToWorldMatrix();
+			auto l2wDet = DirectX::XMMatrixDeterminant(l2w);
+			auto w2l = DirectX::XMMatrixInverse(&l2wDet, l2w);
+			auto localPos = DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&worldPos), w2l);
+			DirectX::XMFLOAT3 localPos3;
+			DirectX::XMStoreFloat3(&localPos3, localPos);
+
+			auto len = sqrt(localPos3.x * localPos3.x + localPos3.y * localPos3.y + localPos3.z * localPos3.z);
+			localPos3.x /= len;
+			localPos3.y /= len;
+			localPos3.z /= len;
+
+			auto rx = len;
+			auto ry = circleToAngle(localPos3.x, localPos3.z);
+			auto rz = asin(localPos3.y);
+
+
+			//// 恢复方式1
+			//float ny = rx * sin(rz);
+			//float nx = rx * cos(rz) * cos(ry);
+			//float nz = rx * cos(rz) * sin(ry);
+			//objShip2->transT = { nx, ny, nz };
+			
+			//// 恢复方式2
+			//objShipCameraSysEarthOrbitLayer->transR = 
+			//	DirectX::XMQuaternionMultiply(
+			//		// positive: south
+			//		DirectX::XMQuaternionRotationAxis({0, 0, 1}, +rz), //纬度
+			//		DirectX::XMQuaternionRotationAxis({0, 1, 0}, -ry) // 经度
+			//	);
+			//objShip2->transT = { rx, 0, 0 };
+		}
+		break;
 		default:
 			assert(false);
 		}
@@ -532,8 +616,8 @@ class MoonLandingGame {
 
 	void updateEarthRotationAnimation() {
 		double time = framerateController.getLastFrameEndTime();
-		double rotationAngle = le::PI * 2 * (fmod(time, EarthRotationPeriod) / EarthRotationPeriod);
-		objEarth->transR = DirectX::XMQuaternionRotationAxis({0, 1, 0}, (float)rotationAngle);
+		earthRotationAngle = le::PI * 2 * (fmod(time, EarthRotationPeriod) / EarthRotationPeriod);
+		objEarth->transR = DirectX::XMQuaternionRotationAxis({0, 1, 0}, (float)earthRotationAngle);
 	}
 	
 	void updateMoonRevolutionAnimation() {
@@ -545,8 +629,8 @@ class MoonLandingGame {
 
 	void updateAnimation() {
 		updateSpaceshipAnimation();
-	//	updateEarthRevolutionAnimation();
-	//	updateEarthRotationAnimation();
+		updateEarthRevolutionAnimation();
+		updateEarthRotationAnimation();
 		updateMoonRevolutionAnimation();
 	}
 
@@ -554,8 +638,8 @@ class MoonLandingGame {
 		constexpr float NORTH_FIX_SHIP_SCALE = 20;
 		for (auto [msg, wparam, lparam]: events) {
 			if (msg == WM_KEYDOWN && wparam == VK_SPACE) {
-			//	objRoot->dump();
-				this->switchOrbitState(OrbitState::EarthToMoon);
+				objRoot->dump();
+			//	this->switchOrbitState(OrbitState::EarthToMoon);
 			} else if (msg == WM_KEYDOWN && (wparam == le::getKeyCode<'3'>() || wparam == VK_NUMPAD3)) {
 				if (activeCamera == CameraSetting::FixedNorth) continue;
 				scene->activeCamera = this->cmNorthFixed;
