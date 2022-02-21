@@ -96,7 +96,7 @@ class MoonLandingGame {
 
 	enum class OrbitState { 
 		OnTheEarth, LaunchEarth, AroundEarth, EarthToMoon, LandEarth,
-		OnTheMoon,  LauhcnMoon,  AroundMoon,  MoonToEarth, LandMoon
+		OnTheMoon,  LaunchMoon,  AroundMoon,  MoonToEarth, LandMoon
 	};
 	OrbitState orbitState = OrbitState::OnTheEarth;	// todo
 
@@ -133,6 +133,11 @@ class MoonLandingGame {
 	double landOnTheMoonProgress = 0;
 	double landOnTheMoonRadianOffset = 0;
 	double onTheMoonRadian = 0;
+
+	double launchFromMoonStartTime = 0;
+	double launchFromhMoonProgress = 0;
+
+	double shipOnMoonRotationAngleOffset = 0;
 
 	MoonLandingGame(): window(
 		L"Rendering Window", 
@@ -356,6 +361,7 @@ class MoonLandingGame {
 			shipOnEarthRotationAngleOffset = fmod(moonRevolutionOrbitRotationAngle + le::PI, 2 * le::PI);
 
 		} else if (orbitState == OrbitState::EarthToMoon && to == OrbitState::AroundMoon) {
+			shipOnMoonRotationAngleOffset = 0;
 			objShipCameraSysMoonOrbitLayer->children = { objShipCameraSysCoordLayer };
 			objShipCameraSysCoordLayer->parent = objShipCameraSysMoonOrbitLayer;
 			objShipCameraSysEMTransferLayer->children.clear();
@@ -433,6 +439,12 @@ class MoonLandingGame {
 			landOnTheMoonRadianOffset = shipOnMoonRotationAngle;
 		} else if (orbitState == OrbitState::LandMoon && to == OrbitState::OnTheMoon) {
 			onTheMoonRadian = shipOnMoonRotationAngle;
+		} else if (orbitState == OrbitState::OnTheMoon && to == OrbitState::LaunchMoon) {
+			launchFromMoonStartTime = framerateController.getLastFrameEndTime();
+			launchFromhMoonProgress = 0;
+		} else if (orbitState == OrbitState::LaunchMoon && to == OrbitState::AroundMoon) {
+			aroundMoonStartTime = framerateController.getLastFrameEndTime();
+			shipOnMoonRotationAngleOffset = shipOnMoonRotationAngle + le::PI;
 		} else {
 			assert(false);
 		}
@@ -457,9 +469,10 @@ class MoonLandingGame {
 	double lastShipOnMoonRotationAngle = -1;
 	double lastShipOnEarthRy = -1;
 	void changeState() {
+		// todo: check current state!
 		char buffer[100];
 		if (commandInQueue) {
-			if (nextState == OrbitState::EarthToMoon) {
+			if (orbitState == OrbitState::AroundEarth && nextState == OrbitState::EarthToMoon) {
 				if (lastShipOnEarthRotationAngle < 0) {
 					lastShipOnEarthRotationAngle = shipOnEarthRotationAngle;
 					// then do nothing else
@@ -479,7 +492,7 @@ class MoonLandingGame {
 						lastShipOnEarthRotationAngle = shipOnEarthRotationAngle;
 					}
 				}
-			} else if (nextState == OrbitState::MoonToEarth) {
+			} else if (orbitState == OrbitState::AroundMoon && nextState == OrbitState::MoonToEarth) {
 				if (lastShipOnMoonRotationAngle < 0) {
 					lastShipOnMoonRotationAngle = shipOnMoonRotationAngle;
 					// then do nothing else
@@ -494,7 +507,7 @@ class MoonLandingGame {
 						lastShipOnMoonRotationAngle = shipOnMoonRotationAngle;
 					}
 				}
-			} else if (nextState == OrbitState::LandEarth) {
+			} else if (orbitState == OrbitState::AroundEarth && nextState == OrbitState::LandEarth) {
 				
 				auto shipWorldPos = objShipCameraSysCoordLayer->getWorldPosition();
 				auto l2w = objEarth->getLocalToWorldMatrix();
@@ -556,6 +569,10 @@ class MoonLandingGame {
 				if (landOnTheMoonProgress > 1) {
 					this->switchOrbitState(OrbitState::OnTheMoon);
 					forbitCommand = false;
+				}
+			} else if (orbitState == OrbitState::LaunchMoon) {
+				if (launchFromhMoonProgress > 1) {
+					this->switchOrbitState(OrbitState::AroundMoon);
 				}
 			}
 		}
@@ -652,7 +669,7 @@ class MoonLandingGame {
 		case OrbitState::AroundMoon:
 		{
 			double time = framerateController.getLastFrameEndTime() - aroundMoonStartTime;
-			shipOnMoonRotationAngle = le::PI + le::PI * 2 * (fmod(time, ShipRevolutionPeriodAroundMoon) / ShipRevolutionPeriodAroundMoon);
+			shipOnMoonRotationAngle = le::PI + le::PI * 2 * (fmod(time, ShipRevolutionPeriodAroundMoon) / ShipRevolutionPeriodAroundMoon) + shipOnMoonRotationAngleOffset;
 			shipOnMoonRotationAngle = fmod(shipOnMoonRotationAngle, 2 * le::PI);
 
 			objShipCameraSysMoonOrbitLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, shipOnMoonRotationAngle);
@@ -663,7 +680,7 @@ class MoonLandingGame {
 		break;
 		case OrbitState::MoonToEarth:
 		{
-			// 走地月转移轨道的 [PI, 2PI]
+			// 走地月转移轨道的 [0, PI]
 
 			double time = framerateController.getLastFrameEndTime() - moonToEarthTransferStartTime;
 			moonToEarthRotationAngle = le::PI * 2 * (fmod(time, EarthMoonTransferTime) / EarthMoonTransferTime);
@@ -742,7 +759,7 @@ class MoonLandingGame {
 		case OrbitState::LandMoon:
 		{
 			double time = framerateController.getLastFrameEndTime() - landOnTheMoonStartTime;
-			landOnTheMoonProgress = time / LandToEarthTime;
+			landOnTheMoonProgress = time / LandToMoonTime;
 			double transformedTime = pow(landOnTheMoonProgress, 3);
 
 			shipOnMoonRotationAngle = le::PI * 2 * (fmod(time, ShipRevolutionPeriodAroundMoon) / ShipRevolutionPeriodAroundMoon) + landOnTheMoonRadianOffset;
@@ -761,6 +778,25 @@ class MoonLandingGame {
 		case OrbitState::OnTheMoon:
 		{
 			objShipCameraSysMoonOrbitLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, onTheMoonRadian);
+		}
+		break;
+		case OrbitState::LaunchMoon:
+		{
+			double time = framerateController.getLastFrameEndTime() - launchFromMoonStartTime;
+			launchFromhMoonProgress = time / LaunchFromMoonTime;
+			double transformedTime = pow(launchFromhMoonProgress, 3);
+
+			shipOnMoonRotationAngle = le::PI + le::PI * 2 * (fmod(time, ShipRevolutionPeriodAroundMoon) / ShipRevolutionPeriodAroundMoon) + landOnTheMoonRadianOffset;
+			shipOnMoonRotationAngle = fmod(shipOnMoonRotationAngle, 2 * le::PI);
+
+			objShipCameraSysMoonOrbitLayer->transR = DirectX::XMQuaternionRotationAxis({ 0, -1, 0 }, shipOnMoonRotationAngle);
+
+			objShipCameraSysOrientationLayer->transR = DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (0) * (1 - transformedTime) + (-le::PI / 2) * transformedTime);
+
+			objShipCameraSysCoordLayer->transT = {
+				float(MoonRadius + (1 - launchFromhMoonProgress) * 0 + launchFromhMoonProgress * OrbitHeightMoon),
+				0, 0
+			};
 		}
 		break;
 		default:
@@ -848,6 +884,13 @@ class MoonLandingGame {
 						// invalid
 					}
 					break;
+				case OrbitState::OnTheMoon:
+					if (wparam == VK_RIGHT) {
+						// invalid
+					} else {
+						// launch from the moon
+						this->switchOrbitState(OrbitState::LaunchMoon);
+					}
 				default:
 					break;
 				}
