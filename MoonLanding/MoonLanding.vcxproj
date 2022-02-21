@@ -109,10 +109,10 @@
     <CopyFileToFolders Include="Resources\Moon_10m.glb">
       <FileType>Document</FileType>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="Resources\Spaceship_5cm.glb">
+    <CopyFileToFolders Include="Resources\Sun_10m.glb">
       <FileType>Document</FileType>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="Resources\Sun_10m.glb">
+    <CopyFileToFolders Include="Resources\Spaceship_20m.glb">
       <FileType>Document</FileType>
     </CopyFileToFolders>
   </ItemGroup>

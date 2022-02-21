@@ -192,8 +192,8 @@ class MoonLandingGame {
 		objMoon = std::make_shared<sm::Object>("Moon");
 		objMoon->children = { objMoonLD };
 
-		auto objShipLD = io::loadDefaultResourceGLTF("Spaceship_5cm.glb");
-		objShipLD->multiplyScale({ SpaceshipHeight / 0.05f, SpaceshipHeight / 0.05f, SpaceshipHeight / 0.05f });
+		auto objShipLD = io::loadDefaultResourceGLTF("Spaceship_20m.glb");
+		objShipLD->multiplyScale({ SpaceshipHeight / 20, SpaceshipHeight / 20, SpaceshipHeight / 20 });
 		objShip = std::make_shared<sm::Object>("Ship");
 		objShip->children = { objShipLD };
 		
@@ -642,7 +642,7 @@ class MoonLandingGame {
 	void updateWindowTitle() {
 		wchar_t operationHint[100];
 
-		swprintf_s(operationHint, L"正在: %s；%s%s%s%s%s%s%s%s%s空格：相机；鼠标：方向；当前相机：%s",
+		swprintf_s(operationHint, L"状态: %s；%s%s%s%s%s%s%s%s%s空格：相机；鼠标：方向；当前相机：%s",
 			getStateName(orbitState),
 			commandInQueue ? L"将择机 " : L"",
 			commandInQueue ? getStateName(nextState) : L"",
@@ -891,20 +891,17 @@ class MoonLandingGame {
 	void updateCameraAnimation() {
 		cmShipFreePresetLayer->transT = { 
 			0, 
-			float((1 - cameraFlyingMode) * SpaceshipHeight * 3 + cameraFlyingMode * (-SpaceshipHeight)), 
-			float((1 - cameraFlyingMode) * SpaceshipHeight * 2 + cameraFlyingMode * (-SpaceshipHeight))
+			SpaceshipHeight * 1.3, 
+			0
 		};
 
 		static auto cmShipFreeQuat1 = DirectX::XMQuaternionMultiply(
-			DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, -le::PI / 2 * 0.5),
-			DirectX::XMQuaternionRotationAxis({ 0, 1, 0 },le::PI)
-		);
-		static auto cmShipFreeQuat2 = DirectX::XMQuaternionMultiply(
-			DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, (le::PI / 2 * 0.8)),
-			DirectX::XMQuaternionRotationAxis({ 0, 1, 0 }, 0)
+			DirectX::XMQuaternionRotationAxis({ -1, 0, 0 }, le::PI / 2),
+			DirectX::XMQuaternionRotationAxis({ 0, 1, 0 },0)
 		);
 
-		cmShipFreePresetLayer->transR = DirectX::XMQuaternionSlerp(cmShipFreeQuat1, cmShipFreeQuat2, float(cameraFlyingMode));
+
+		cmShipFreePresetLayer->transR = cmShipFreeQuat1;
 	}
 
 	void updateAnimation() {
