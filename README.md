@@ -1,81 +1,81 @@
 # Moon Landing
-µÇÂ½ÔÂÇòÐ¡ÓÎÏ·
+ä¸€ä¸ª Direct3D 11 å›¾å½¢ç¼–ç¨‹ç»ƒä¹ é¡¹ç›®
 
 
 ## Build
 
-ÊÊÓÃ»·¾³£ºWindows 10/11, Visual Studio 2019 »ò¸ü¸ß°æ±¾
+é€‚ç”¨çŽ¯å¢ƒï¼šWindows 10/11, Visual Studio 2019 æˆ–æ›´é«˜ç‰ˆæœ¬
 
-ÒÀÀµ£ºNuGet °ü DirectXTeX¡£ÔÚÁªÍøÌõ¼þÏÂ£¬Visual Studio 
-»á×ÔÐÐÏÂÔØ
+ä¾èµ–ï¼šNuGet åŒ… DirectXTeXã€‚åœ¨è”ç½‘æ¡ä»¶ä¸‹ï¼ŒVisual Studio 
+ä¼šè‡ªè¡Œä¸‹è½½
 
-¹¹½¨²½Öè£º
-1. ÓÒ¼üµ¥»÷ MoonLanding ÏîÄ¿£¬½«ÆäÉèÖÃÎªÆô¶¯ÏîÄ¿
-2. Èç¹ûÒªÔÚ Visual Studio ÖÐÖ±½ÓÆô¶¯»òµ÷ÊÔ¸ÃÏîÄ¿£¬ÄÇÃ´Ðè
-   ÒªÓÒ¼üµ¥»÷ MoonLanding ÏîÄ¿£¬½« ÊôÐÔ - µ÷ÊÔ - ¹¤×÷Ä¿
-   Â¼ÉèÖÃÎª "$(TargetDir)"¡£ÒòÎª Visual Studio ²»»á½«
-   ¸ÃÏîÉèÖÃ±£´æµ½ VC ÏîÄ¿ÎÄ¼þ£¬ËùÒÔÐèÒªÊÖ¶¯ÉèÖÃ¸ÃÏî¡£
-3. ¹¹½¨ / Æô¶¯ / µ÷ÊÔ
+æž„å»ºæ­¥éª¤ï¼š
+1. å³é”®å•å‡» MoonLanding é¡¹ç›®ï¼Œå°†å…¶è®¾ç½®ä¸ºå¯åŠ¨é¡¹ç›®
+2. å¦‚æžœè¦åœ¨ Visual Studio ä¸­ç›´æŽ¥å¯åŠ¨æˆ–è°ƒè¯•è¯¥é¡¹ç›®ï¼Œé‚£ä¹ˆéœ€
+   è¦å³é”®å•å‡» MoonLanding é¡¹ç›®ï¼Œå°† å±žæ€§ - è°ƒè¯• - å·¥ä½œç›®
+   å½•è®¾ç½®ä¸º "$(TargetDir)"ã€‚å› ä¸º Visual Studio ä¸ä¼šå°†
+   è¯¥é¡¹è®¾ç½®ä¿å­˜åˆ° VC é¡¹ç›®æ–‡ä»¶ï¼Œæ‰€ä»¥éœ€è¦æ‰‹åŠ¨è®¾ç½®è¯¥é¡¹ã€‚
+3. æž„å»º / å¯åŠ¨ / è°ƒè¯•
 
 
 ## Run
 
-¹¹½¨Íê³Éºó£¬ÏîÄ¿ËùÐèµÄËùÓÐ×ÊÔ´ÎÄ¼þ£¨Èç cso ÎÄ¼þ£¬3D Ä£ÐÍÎÄ
-¼þ£©¶¼ºÍ¿ÉÖ´ÐÐ³ÌÐòÎ»ÓÚÍ¬Ò»Ä¿Â¼ÏÂ¡£ÒÔ¸ÃÄ¿Â¼Îª¹¤×÷Ä¿Â¼Æô¶¯³ÌÐò
-¼´¿É¡£
+æž„å»ºå®ŒæˆåŽï¼Œé¡¹ç›®æ‰€éœ€çš„æ‰€æœ‰èµ„æºæ–‡ä»¶ï¼ˆå¦‚ cso æ–‡ä»¶ï¼Œ3D æ¨¡åž‹æ–‡
+ä»¶ï¼‰éƒ½å’Œå¯æ‰§è¡Œç¨‹åºä½äºŽåŒä¸€ç›®å½•ä¸‹ã€‚ä»¥è¯¥ç›®å½•ä¸ºå·¥ä½œç›®å½•å¯åŠ¨ç¨‹åº
+å³å¯ã€‚
 
 
 ## Dependencies
 
 0. Windows API
-1. NuGet °ü DirectXTeX¡£Visual Studio »á×Ô¶¯°²×°
-2. TinyGLTF£¬ÓÃÓÚ¼ÓÔØ glTF 3D Ä£ÐÍÎÄ¼þ¡£ÊÇÒ»¸ö header-only
-   µÄ¿â
+1. NuGet åŒ… DirectXTeXã€‚Visual Studio ä¼šè‡ªåŠ¨å®‰è£…
+2. TinyGLTFï¼Œç”¨äºŽåŠ è½½ glTF 3D æ¨¡åž‹æ–‡ä»¶ã€‚æ˜¯ä¸€ä¸ª header-only
+   çš„åº“
 
 
 ## Structures
 
-* LiteEngine: "ÃÔÄãÒýÇæ"£¬¼òµ¥·â×°ÁË DirectX µÄ API
-* MoonLanding: µÇÂ½ÔÂÇòÐ¡ÓÎÏ·
+* LiteEngine: ç®€å•å°è£…äº† DirectX çš„ APIã€‚ç§°ä¸ä¸Š Engine
+* MoonLanding: ç™»é™†æœˆçƒå°æ¸¸æˆ
 
 ## LiteEngine
 
 ### Modeling
-Ê¹ÓÃ Blender ½¨Ä££¨»òµ¼ÈëÍâ²¿Ä£ÐÍ£©£¬µ¼³öµ½ glTF 2.0 ¸ñÊ½¡£
-ÔÚµ¼³ö½çÃæ£¬ÐèÒª¹´Ñ¡ Normals¡¢Tangents£»ÐèÒªÈ¡Ïû¹´Ñ¡ +Y Up
-(·ñÔòµ¼ÈëµÄÏà»ú»áÓÐÎÊÌâ)£»¿ÉÒÔ¹´Ñ¡ Punctual Lights£¨·½Ïò¹â¡¢
-µã¹â¡¢¾Û¹âµÆ£©¡¢Cameras£¨Ïà»ú£©¡£
+ä½¿ç”¨ Blender å»ºæ¨¡ï¼ˆæˆ–å¯¼å…¥å¤–éƒ¨æ¨¡åž‹ï¼‰ï¼Œå¯¼å‡ºåˆ° glTF 2.0 æ ¼å¼ã€‚
+åœ¨å¯¼å‡ºç•Œé¢ï¼Œéœ€è¦å‹¾é€‰ Normalsã€Tangentsï¼›éœ€è¦å–æ¶ˆå‹¾é€‰ +Y Up
+(å¦åˆ™å¯¼å…¥çš„ç›¸æœºä¼šæœ‰é—®é¢˜)ï¼›å¯ä»¥å‹¾é€‰ Punctual Lightsï¼ˆæ–¹å‘å…‰ã€
+ç‚¹å…‰ã€èšå…‰ç¯ï¼‰ã€Camerasï¼ˆç›¸æœºï¼‰ã€‚
 
-Èç¹ûÒ»¸ö Mesh Ã»ÓÐÏÔÊ½ÉèÖÃ TANGENT£¬²¢ÇÒÃ»ÓÐÈÎºÎ UV£¬ÄÇÃ´ 
-Blender µ¼³ö²å¼þ²»»áµ¼³ö TANGENT¡£ÕâÖÖÇé¿öÏÂ£¬¿ÉÒÔÔÚ Blender 
-ÖÐÊÖ¶¯Ìí¼Ó UV Map ºóÔÙµ¼³ö¡£
+å¦‚æžœä¸€ä¸ª Mesh æ²¡æœ‰æ˜¾å¼è®¾ç½® TANGENTï¼Œå¹¶ä¸”æ²¡æœ‰ä»»ä½• UVï¼Œé‚£ä¹ˆ 
+Blender å¯¼å‡ºæ’ä»¶ä¸ä¼šå¯¼å‡º TANGENTã€‚è¿™ç§æƒ…å†µä¸‹ï¼Œå¯ä»¥åœ¨ Blender 
+ä¸­æ‰‹åŠ¨æ·»åŠ  UV Map åŽå†å¯¼å‡ºã€‚
 
-ÔÚÈ±ÉÙ NORMAL »òÕß TANGENT µÄÊ±ºò£¬ÎªÁË¼òµ¥Ã÷È·Æð¼û£¬
-LiteEngine »áÖ±½Ó±¨´í¡£
+åœ¨ç¼ºå°‘ NORMAL æˆ–è€… TANGENT çš„æ—¶å€™ï¼Œä¸ºäº†ç®€å•æ˜Žç¡®èµ·è§ï¼Œ
+LiteEngine ä¼šç›´æŽ¥æŠ¥é”™ã€‚
 
 ### glTF Model Loader Feature
-»áµ¼Èë:
+ä¼šå¯¼å…¥:
 1. Mesh
-2. µÆ¹â
-3. ²ÄÖÊºÍÌùÍ¼
-4. Ïà»ú
+2. ç¯å…‰
+3. æè´¨å’Œè´´å›¾
+4. ç›¸æœº
 
-²»»áµ¼Èë£º
-1. ¶¯»­
+ä¸ä¼šå¯¼å…¥ï¼š
+1. åŠ¨ç”»
 
-ÐèÒª glTF ÎÄ¼þÖÐ´æÔÚ£º
-1. ·¨Ïß
-2. ÕýÇÐÏß
+éœ€è¦ glTF æ–‡ä»¶ä¸­å­˜åœ¨ï¼š
+1. æ³•çº¿
+2. æ­£åˆ‡çº¿
 
-²»Ö§³Ö£º
-1. ·ÇÈý½ÇÐÎµÄÐÅÏ¢
-2. ´ÓÏ¡Êè»º³åÇøÖÐ¶ÁÈ¡Êý¾Ý
+ä¸æ”¯æŒï¼š
+1. éžä¸‰è§’å½¢çš„ä¿¡æ¯
+2. ä»Žç¨€ç–ç¼“å†²åŒºä¸­è¯»å–æ•°æ®
 
 
 
 ## Reference
-Ö÷Òª²Î¿¼×ÊÁÏ
+ä¸»è¦å‚è€ƒèµ„æ–™
 * [Direct3D 11 Graphics](https://docs.microsoft.com/en-us/windows/win32/direct3d11/atoc-dx-graphics-direct3d-11)
 * [Blender Reference Manual](https://docs.blender.org/manual/en/latest/)
 * [glTF 2.0 Specification](https://www.khronos.org/registry/glTF/specs/2.0/glTF-2.0.html)
-* [glTF `KHR_lights_punctual` Extension ÎÄµµ](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_lights_punctual/README.md)
+* [glTF `KHR_lights_punctual` Extension æ–‡æ¡£](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_lights_punctual/README.md)
